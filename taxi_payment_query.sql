@@ -1,6 +1,5 @@
 SELECT
   IF(payment_type='Cash',1,0) cash,
-  IF(payment_type='Credit Card',1,0) credit,
   EXTRACT(DAYOFWEEK FROM trip_start_timestamp) AS day_of_week,
   (((EXTRACT(HOUR from trip_start_timestamp)*3600)+(EXTRACT(MINUTE from trip_start_timestamp)*60)+(EXTRACT(SECOND from trip_start_timestamp)))/86400) as start_time,
   (((EXTRACT(HOUR from trip_end_timestamp)*3600)+(EXTRACT(MINUTE from trip_end_timestamp)*60)+(EXTRACT(SECOND from trip_end_timestamp)))/86400) as end_time,
