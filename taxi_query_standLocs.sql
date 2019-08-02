@@ -7,10 +7,10 @@ SELECT
   EXTRACT(MONTH FROM trip_start_timestamp) as month,
   EXTRACT(YEAR FROM trip_start_timestamp) as year,
   trip_miles,
-  (pickup_latitude - 41.87)*10 as stand_pickup_lat,
-  (pickup_longitude + 87.75)*10 as stand_pickup_long,
-  (dropoff_latitude - 41.87)*10 as stand_dropoff_lat,
-  (dropoff_longitude + 87.75)*10 as stand_dropoff_long
+  (pickup_latitude - 41.660136051)/(42.021223593 - 41.660136051) AS standard_pickup_lat,
+  (pickup_longitude + 87.913624596)/(-87.531386257 + 87.913624596) AS standard_pickup_long,
+  (dropoff_latitude - 41.650221676)/(42.021223593 - 41.650221676 ) AS standard_dropoff_lat,
+  (dropoff_longitude + 87.913624596)/(-87.531386257 + 87.913624596) AS standard_dropoff_long
 
 FROM
   `bigquery-public-data.chicago_taxi_trips.taxi_trips`
