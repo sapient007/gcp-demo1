@@ -2,6 +2,7 @@ import googleapiclient.discovery
 import logging
 
 
+
 class Predictor:
     def __init__(self, project, model, version=None):
         """Send json data to a deployed model for prediction.
@@ -52,7 +53,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
         handlers=[
-            logging.FileHandler('scrape.log'),
+            logging.FileHandler('predictor.log'),
             logging.StreamHandler()
         ])
 
