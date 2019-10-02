@@ -4,12 +4,12 @@ import logging
 import json
 
 PROJECT = 'ml-sandbox-1-191918'
-MODEL = 'Cash_Or_Credit'
+MODEL = 'taxi_model_1565105801'
 
 # with open('settings.json', 'r') as fp:
 #     config = json.load(fp)
 
-app = Flask(__name__)
+# app = Flask(__name__)
 
 
 def predict_json(project, model, instances, version=None):
@@ -30,24 +30,21 @@ def predict_json(project, model, instances, version=None):
     # Create the ML Engine service object.
     # To authenticate set the environment variable
     # GOOGLE_APPLICATION_CREDENTIALS=<path_to_service_account_file>
-    service = googleapiclient.discovery.build('ml', 'v1')
+    service = googleapiclient.discovery.build('ml', 'v1', cache_discovery=False)
     name = 'projects/{}/models/{}'.format(project, model)
 
     if version is not None:
         name += '/versions/{}'.format(version)
 
-    response = service.projects().predict(
-        name=name,
-        body={'instances': instances}
-    ).execute()
+    response = service.projects().predict(name=name, body={'instances': instances}).execute()
 
-    if 'error' in response:
-        raise RuntimeError(response['error'])
+    # if 'error' in response:
+    #     raise RuntimeError(response['error'])
 
     return response['predictions']
 
 
-@app.route("/predict", methods=['POST'])
+# @app.route("/predict", methods=['POST'])
 def get_predictions():
     """
     API endpoint to get a prediction from ML model.
@@ -56,14 +53,14 @@ def get_predictions():
     :return: json object containing predictions
     """
 
-    instances = {}
+    instances = [{"csv_row": "6,0.927083333,0.9375,116,4,2013,0.1,0.606309877,0.671360099,0.653137315,0.663879711", "key": "dummy-key"}]
 
-    try:
+    # try:
         # data_dict = request.get_json(force=True)
-        return jsonify(predict_json(PROJECT, MODEL, instances))
+    return predict_json(PROJECT, MODEL, instances)
 
-    except:
-        return(jsonify("Error processing request."))
+    # except:
+    #     return(jsonify("Error processing request."))
 
 
 if __name__ == "__main__":
@@ -79,5 +76,5 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
-    #get_predictions("iiii")
-    app.run(host='0.0.0.0')
+    print(get_predictions())
+    # app.run(host='0.0.0.0')
