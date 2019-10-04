@@ -25,7 +25,7 @@ dependencies {
     implementation("org.apache.beam:beam-runners-direct-java:$beamVersion")
     implementation("org.apache.beam:beam-runners-google-cloud-dataflow-java:$beamVersion")
     implementation("org.apache.beam:beam-sdks-java-io-google-cloud-platform:$beamVersion")
-//    implementation("com.google.cloud:google-cloud-bigquery:$bigqueryVersion")
+    implementation("com.google.cloud:google-cloud-bigquery:$bigqueryVersion")
     testCompile("junit", "junit", "4.12")
 }
 

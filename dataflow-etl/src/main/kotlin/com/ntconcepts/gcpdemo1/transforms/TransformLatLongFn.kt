@@ -10,7 +10,7 @@ class TransformLatLongFn(val maxLatView: PCollectionView<Double>) :
     DoFn<KV<TaxiRideL1, TableRow>, KV<TaxiRideL1, TableRow>>() {
 
     @ProcessElement
-    fun apply(c: ProcessContext, out: MultiOutputReceiver) {
+    fun apply(c: ProcessContext) {
 
         val trip = c.element().key
         val row = c.element().value

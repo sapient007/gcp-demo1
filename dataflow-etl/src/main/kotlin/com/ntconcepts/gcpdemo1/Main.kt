@@ -8,12 +8,15 @@ import com.ntconcepts.gcpdemo1.transforms.*
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.coders.DoubleCoder
 import org.apache.beam.sdk.coders.SerializableCoder
+import org.apache.beam.sdk.coders.StringUtf8Coder
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord
 import org.apache.beam.sdk.options.PipelineOptionsFactory
 import org.apache.beam.sdk.transforms.*
 import org.apache.beam.sdk.values.*
 import org.slf4j.LoggerFactory
+
+const val daysOfWeekPrefix = "day_of_week_"
 
 fun main(args: Array<String>) {
     val LOG = LoggerFactory.getLogger("com.ntconcepts.gcp-demo1")
@@ -27,21 +30,43 @@ fun getOptions(args: Array<String>): Demo1Options {
         .`as`(Demo1Options::class.java)
 }
 
-fun getTransformSchema(): TableSchema {
 
-    val fields = ArrayList<TableFieldSchema>()
-    fields.add(TableFieldSchema().setName("cash").setType("INTEGER"))
-    fields.add(TableFieldSchema().setName("day_of_week").setType("INTEGER"))
-    fields.add(TableFieldSchema().setName("month").setType("INTEGER"))
-    fields.add(TableFieldSchema().setName("year").setType("INTEGER"))
-    fields.add(TableFieldSchema().setName("start_time").setType("FLOAT"))
-    fields.add(TableFieldSchema().setName("trip_miles").setType("FLOAT"))
-    fields.add(TableFieldSchema().setName("pickup_latitude").setType("FLOAT"))
-    fields.add(TableFieldSchema().setName("pickup_longitude").setType("FLOAT"))
-    fields.add(TableFieldSchema().setName("dropoff_latitude").setType("FLOAT"))
-    fields.add(TableFieldSchema().setName("dropoff_longitude").setType("FLOAT"))
-    return TableSchema().setFields(fields)
 
+fun getDaysOfWeekList(): List<String> {
+    return listOf(
+        "${daysOfWeekPrefix}MONDAY",
+        "${daysOfWeekPrefix}TUESDAY",
+        "${daysOfWeekPrefix}WEDNESDAY",
+        "${daysOfWeekPrefix}THURSDAY",
+        "${daysOfWeekPrefix}FRIDAY",
+        "${daysOfWeekPrefix}SATURDAY",
+        "${daysOfWeekPrefix}SUNDAY"
+    )
+}
+
+fun getDaysOfWeekView(p: Pipeline): PCollectionView<List<String>> {
+    val days = getDaysOfWeekList()
+    return p.apply("Get one-hot-encoded day of the week keys", Create.of(days)).setCoder(StringUtf8Coder.of())
+        .apply("Make one-hot week view", View.asList())
+}
+
+fun getMonthView(p: Pipeline): PCollectionView<List<String>> {
+    val months = listOf(
+        "month_JANUARY",
+        "month_FEBRUARY",
+        "month_MARCH",
+        "month_APRIL",
+        "month_MAY",
+        "month_JUNE",
+        "month_JULY",
+        "month_AUGUST",
+        "month_SEPTEMBER",
+        "month_OCTOBER",
+        "month_NOVEMBER",
+        "month_DECEMBER"
+    )
+    return p.apply("Get one-hot-encoded month keys", Create.of(months)).setCoder(StringUtf8Coder.of())
+        .apply("Make one-hot month view",View.asList())
 }
 
 fun getPipeline(options: Demo1Options): Pipeline {
@@ -50,6 +75,12 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val startLats = TupleTag<Double>()
     val startLongs = TupleTag<Double>()
     val trips = TupleTag<TaxiRideL1>()
+
+    val dayOfWeekView = getDaysOfWeekView(p)
+    val monthView = getMonthView(p)
+
+    p.apply("Create table",
+        BQCreateTable(options.dataset, options.table, options.dropTable, dayOfWeekView, monthView))
 
     val results: PCollectionTuple =
         p.apply(
@@ -83,7 +114,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
             }
             )
 //        .from("bigquery-public-data:chicago_taxi_trips.taxi_trips")
-                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` LIMIT 1000")
+                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` LIMIT 100000")
                 .usingStandardSql()
         )
             .apply(
@@ -123,12 +154,11 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
         .apply(
             "Create trip time fields",
-            MapElements.into(
-                TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TableRow::class.java))
-            ).via(TripTimesFn())
+            ParDo.of(TripTimesFn(dayOfWeekView, monthView, daysOfWeekPrefix))
+                .withSideInputs(dayOfWeekView, monthView)
         )
         .apply(
-            "Process pickup lat/long fields",
+            "Process pickup latlong fields",
             ParDo.of(TransformLatLongFn(maxPickupLat)).withSideInputs(
                 maxPickupLat,
                 minPickupLat,
@@ -146,7 +176,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
             "Load transformed rides",
             BigQueryIO.writeTableRows()
                 .to("chicagotaxi.finaltaxi_encoded_el_test")
-                .withSchema(getTransformSchema())
+//                .withSchema(getTransformSchema(OneHotSchemaWrapper(getDaysOfWeekList(), "INTEGER")))
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
         )
 
