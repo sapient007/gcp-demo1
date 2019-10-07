@@ -9,23 +9,24 @@ import org.apache.beam.sdk.values.PBegin
 import org.apache.beam.sdk.values.PCollectionView
 import org.apache.beam.sdk.values.PDone
 
-class BQCreateTable (val dataset: ValueProvider<String>,
-                     val table: ValueProvider<String>,
-                     val dropTable: ValueProvider<Boolean>,
-                     val dayOfWeekView: PCollectionView<List<String>>,
-                     val monthView: PCollectionView<List<String>>
-): PTransform<PBegin, PDone>() {
-
+class BQCreateTable(
+    val dataset: ValueProvider<String>,
+    val table: ValueProvider<String>,
+    val dropTable: ValueProvider<Boolean>,
+    val dayOfWeekView: PCollectionView<List<String>>,
+    val monthView: PCollectionView<List<String>>
+) : PTransform<PBegin, PDone>() {
 
 
     override fun expand(input: PBegin): PDone {
         //Hack bc passing PBegin wasn't working with ParDo/DoFn
         input.apply(Create.of(true)).setCoder(BooleanCoder.of())
-            .apply("CreateTable",
-            ParDo.of(
-                CreateBQTable(dataset, table, dropTable, dayOfWeekView, monthView)
-            ).withSideInputs(dayOfWeekView, monthView)
-        )
+            .apply(
+                "CreateTable",
+                ParDo.of(
+                    CreateBQTable(dataset, table, dropTable, dayOfWeekView, monthView)
+                ).withSideInputs(dayOfWeekView, monthView)
+            )
         return PDone.`in`(input.pipeline)
     }
 
