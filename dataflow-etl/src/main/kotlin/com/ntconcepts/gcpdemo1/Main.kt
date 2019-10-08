@@ -176,7 +176,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val meanPickupLong: PCollectionView<Double> =
         startLongsPCollection.apply("meanPickupLong", Mean.globally<Double>().asSingletonView())
 
-    val kvDescriptor = TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TaxiTripOutput::class.java))
+    val kvDescriptor =
+        TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TaxiTripOutput::class.java))
 
 
 

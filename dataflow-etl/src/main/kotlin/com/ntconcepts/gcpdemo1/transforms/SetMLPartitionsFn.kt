@@ -1,6 +1,5 @@
 package com.ntconcepts.gcpdemo1.transforms
 
-import com.google.api.services.bigquery.model.TableRow
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.utils.RandomCollection

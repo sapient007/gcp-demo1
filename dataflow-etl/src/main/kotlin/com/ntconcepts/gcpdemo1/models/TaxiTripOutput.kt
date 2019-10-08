@@ -18,9 +18,9 @@ data class TaxiTripOutput(
     var daysOfWeekEncoded: HashMap<String, Int>?,
     var monthsEncoded: HashMap<String, Int>?,
     var companiesEncoded: HashMap<String, Int>?
-): Serializable {
+) : Serializable {
 
-    constructor(): this(
+    constructor() : this(
         0,
         0,
         "",
@@ -35,5 +35,6 @@ data class TaxiTripOutput(
         0.0,
         HashMap<String, Int>(),
         HashMap<String, Int>(),
-        HashMap<String, Int>())
+        HashMap<String, Int>()
+    )
 }
