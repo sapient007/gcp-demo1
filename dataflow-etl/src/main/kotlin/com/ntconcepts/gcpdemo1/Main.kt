@@ -3,6 +3,7 @@ package com.ntconcepts.gcpdemo1
 import com.google.api.services.bigquery.model.TableRow
 import com.ntconcepts.gcpdemo1.accumulators.StdFn
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
+import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.transforms.*
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.coders.DoubleCoder
@@ -175,22 +176,26 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val meanPickupLong: PCollectionView<Double> =
         startLongsPCollection.apply("meanPickupLong", Mean.globally<Double>().asSingletonView())
 
+    val kvDescriptor = TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TaxiTripOutput::class.java))
+
+
+
     tripsPCollection.apply(
         "Convert to KVs",
         MapElements.into(
-            TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TableRow::class.java))
+            kvDescriptor
         ).via(ConvertToKVFn())
     )
         .apply(
             "Code cash payments",
             MapElements.into(
-                TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TableRow::class.java))
+                kvDescriptor
             ).via(CodeCashFn())
         )
         .apply(
             "Trip miles",
             MapElements.into(
-                TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TableRow::class.java))
+                kvDescriptor
             ).via(TripMilesFn())
         )
         .apply(
@@ -199,12 +204,12 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
         .apply(
             "Create trip time fields",
-            ParDo.of(TripTimesFn(dayOfWeekView, monthView, daysOfWeekPrefix))
+            ParDo.of(TripTimesFn(dayOfWeekView, monthView))
                 .withSideInputs(dayOfWeekView, monthView)
         )
         .apply(
             "Encode company",
-            ParDo.of(EncodeCompany(companiesView, companyPrefix)).withSideInputs(companiesView)
+            ParDo.of(EncodeCompanyFn(companiesView, companyPrefix)).withSideInputs(companiesView)
         )
         .apply(
             "Process pickup latlong fields",

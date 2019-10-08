@@ -2,15 +2,17 @@ package com.ntconcepts.gcpdemo1.transforms
 
 import com.google.api.services.bigquery.model.TableRow
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
+import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import org.apache.beam.sdk.transforms.SimpleFunction
 import org.apache.beam.sdk.values.KV
 
-class CodeCashFn : SimpleFunction<KV<TaxiRideL1, TableRow>, KV<TaxiRideL1, TableRow>>() {
-    override fun apply(wrapper: KV<TaxiRideL1, TableRow>): KV<TaxiRideL1, TableRow> {
-        var row = wrapper.value.clone()
+class CodeCashFn : SimpleFunction<KV<TaxiRideL1, TaxiTripOutput>, KV<TaxiRideL1, TaxiTripOutput>>() {
+    override fun apply(wrapper: KV<TaxiRideL1, TaxiTripOutput>): KV<TaxiRideL1, TaxiTripOutput> {
+        var row = wrapper.value.copy()
+
         if (wrapper.key?.payment_type == "Cash") {
-            row.set("cash", 1)
-        } else row.set("cash", 0)
+            row.cash = 1
+        } else row.cash = 0
         return KV.of(wrapper.key, row)
     }
 }
