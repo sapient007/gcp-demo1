@@ -14,7 +14,9 @@ class BQCreateTable(
     val table: ValueProvider<String>,
     val dropTable: ValueProvider<Boolean>,
     val dayOfWeekView: PCollectionView<List<String>>,
-    val monthView: PCollectionView<List<String>>
+    val monthView: PCollectionView<List<String>>,
+    val companiesView: PCollectionView<List<String>>,
+    val companyPrefix: String
 ) : PTransform<PBegin, PDone>() {
 
 
@@ -24,8 +26,8 @@ class BQCreateTable(
             .apply(
                 "CreateTable",
                 ParDo.of(
-                    CreateBQTable(dataset, table, dropTable, dayOfWeekView, monthView)
-                ).withSideInputs(dayOfWeekView, monthView)
+                    CreateBQTable(dataset, table, dropTable, dayOfWeekView, monthView, companiesView)
+                ).withSideInputs(dayOfWeekView, monthView, companiesView)
             )
         return PDone.`in`(input.pipeline)
     }

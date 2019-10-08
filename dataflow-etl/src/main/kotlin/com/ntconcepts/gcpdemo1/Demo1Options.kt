@@ -10,4 +10,6 @@ interface Demo1Options : DataflowPipelineOptions {
     fun setTable(table: ValueProvider<String>)
     val dropTable: ValueProvider<Boolean>
     fun setDropTable(dropTable: ValueProvider<Boolean>)
+    val partitionWeights: ValueProvider<HashMap<String, Double>>
+    fun setPartitionWeights(partitionWeights: ValueProvider<HashMap<String, Double>>)
 }

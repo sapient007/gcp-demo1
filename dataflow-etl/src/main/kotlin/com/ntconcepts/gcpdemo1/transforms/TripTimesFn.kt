@@ -3,17 +3,23 @@ package com.ntconcepts.gcpdemo1.transforms
 import com.google.api.services.bigquery.model.TableRow
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import org.apache.beam.sdk.transforms.DoFn
-import org.apache.beam.sdk.transforms.SimpleFunction
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollectionView
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
-class TripTimesFn(val daysOFWeekView: PCollectionView<List<String>>, val monthsView: PCollectionView<List<String>>, val daysOfWeekPrefix: String) :
+class TripTimesFn(
+    val daysOFWeekView: PCollectionView<List<String>>,
+    val monthsView: PCollectionView<List<String>>,
+    val daysOfWeekPrefix: String
+) :
     DoFn<KV<TaxiRideL1, TableRow>, KV<TaxiRideL1, TableRow>>() {
 
     @ProcessElement
     fun apply(c: ProcessContext) {
+
+
         val trip = c.element().key
         val row = c.element().value.clone()
 
@@ -21,17 +27,18 @@ class TripTimesFn(val daysOFWeekView: PCollectionView<List<String>>, val monthsV
         val months = c.sideInput(monthsView)
 
         val startTrip: LocalDateTime =
-            LocalDateTime.ofEpochSecond(trip?.trip_start_timestamp as Long, 0, ZoneOffset.UTC)
+            LocalDateTime.ofEpochSecond(trip?.trip_start_timestamp as Long / 1000000, 0, ZoneOffset.UTC)
+        val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
         row.set(
-            "start_time", trip.trip_start_timestamp
+            "start_time", startTrip.format(timestampFormatter)
         )
 
         //One-hot-encode day of the week
         val oheDayOfWeek = "day_of_week_${startTrip.dayOfWeek.name}"
         row.set(oheDayOfWeek, 1)
         daysOfWeek.forEach {
-            if(it != oheDayOfWeek) {
+            if (it != oheDayOfWeek) {
                 row.set(it, 0)
             }
         }
@@ -39,7 +46,7 @@ class TripTimesFn(val daysOFWeekView: PCollectionView<List<String>>, val monthsV
         val ohemonth = "month_${startTrip.month.name}"
         row.set(ohemonth, 1)
         months.forEach {
-            if(it != ohemonth) {
+            if (it != ohemonth) {
                 row.set(it, 0)
             }
         }
