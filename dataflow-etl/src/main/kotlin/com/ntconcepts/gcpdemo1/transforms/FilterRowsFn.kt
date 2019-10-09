@@ -9,8 +9,6 @@ import org.slf4j.LoggerFactory
 
 class FilterRowsFn(
     val companies: TupleTag<String>,
-    val startLats: TupleTag<Double>,
-    val startLongs: TupleTag<Double>,
     val trips: TupleTag<TaxiRideL1>
 ) :
     DoFn<TaxiRideL1, TaxiRideL1>() {
@@ -43,8 +41,6 @@ class FilterRowsFn(
             (trip.pickup_longitude != null && trip.pickup_longitude != 0.0)
         ) {
             out.get(trips).output(trip)
-            out.get(startLats).output(trip.pickup_latitude)
-            out.get(startLongs).output(trip.pickup_longitude)
             if (trip.company != null) {
                 out.get(companies).output(CleanForColumnName.clean(trip.company))
             }

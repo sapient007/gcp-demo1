@@ -13,7 +13,8 @@ version = "1.0-SNAPSHOT"
 val beamVersion: String by project
 val bigqueryVersion: String by project
 val csvVersion: String by project
-//val args: String by project
+val sisVersion: String by project
+val geoAPIVersion: String by project
 
 allprojects {
     buildDir = File("C:/tmp/${rootProject.name}/${project.name}")
@@ -33,6 +34,8 @@ dependencies {
 //    implementation("org.apache.beam:beam-sdks-java-io-parquet:$beamVersion")
     implementation("com.google.cloud:google-cloud-bigquery:$bigqueryVersion")
     implementation("org.apache.commons:commons-csv:$csvVersion")
+    implementation("org.apache.sis.core:sis-referencing:$sisVersion")
+    implementation("org.opengis:geoapi:$geoAPIVersion")
     testCompile("junit", "junit", "4.12")
 }
 

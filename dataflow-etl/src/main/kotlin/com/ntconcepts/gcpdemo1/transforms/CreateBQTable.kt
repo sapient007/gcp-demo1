@@ -103,6 +103,12 @@ class CreateBQTable(
         )
         fields.add(
             Field.newBuilder(
+                "distance_from_center",
+                StandardSQLTypeName.FLOAT64
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
                 "pickup_latitude",
                 StandardSQLTypeName.FLOAT64
             ).setMode(Field.Mode.REQUIRED).build()
@@ -110,6 +116,18 @@ class CreateBQTable(
         fields.add(
             Field.newBuilder(
                 "pickup_longitude",
+                StandardSQLTypeName.FLOAT64
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
+                "pickup_lat_centered",
+                StandardSQLTypeName.FLOAT64
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
+                "pickup_long_centered",
                 StandardSQLTypeName.FLOAT64
             ).setMode(Field.Mode.REQUIRED).build()
         )

@@ -8,10 +8,7 @@ import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.transforms.*
 import org.apache.avro.generic.GenericRecord
 import org.apache.beam.sdk.Pipeline
-import org.apache.beam.sdk.coders.AvroCoder
-import org.apache.beam.sdk.coders.DoubleCoder
-import org.apache.beam.sdk.coders.SerializableCoder
-import org.apache.beam.sdk.coders.StringUtf8Coder
+import org.apache.beam.sdk.coders.*
 import org.apache.beam.sdk.io.AvroIO
 import org.apache.beam.sdk.io.TextIO
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
@@ -25,7 +22,6 @@ const val daysOfWeekPrefix = "day_of_week_"
 const val companyPrefix = "company_"
 
 fun main(args: Array<String>) {
-//    val LOG = LoggerFactory.getLogger("com.ntconcepts.gcp-demo1")
     val options = getOptions(args)
     val p = getPipeline(options)
     p.run()
@@ -130,20 +126,19 @@ fun getPipeline(options: Demo1Options): Pipeline {
                 )
             }
             )
-                .from("bigquery-public-data:chicago_taxi_trips.taxi_trips")
+//                .from("bigquery-public-data:chicago_taxi_trips.taxi_trips")
 //                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
-//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 1000")
-//                .usingStandardSql()
+                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 1000")
+                .usingStandardSql()
 
         )
             .apply(
                 "Filter rows",
-                ParDo.of(FilterRowsFn(companies, startLats, startLongs, trips)).withOutputTags(
+                ParDo.of(FilterRowsFn(companies, trips)).withOutputTags(
                     trips,
-                    TupleTagList.of(startLats).and(startLongs).and(companies)
+                    TupleTagList.of(companies)
                 )
             )
-
 
     val tripsPCollection: PCollection<TaxiRideL1> =
         results.get(trips).setCoder(SerializableCoder.of(TaxiRideL1::class.java))
@@ -151,8 +146,34 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val companiesPCollection: PCollection<String> = results.get(companies).setCoder(StringUtf8Coder.of())
     val companiesView = getCompaniesView(companiesPCollection)
 
-    val startLatsPCollection: PCollection<Double> = results.get(startLats).setCoder(DoubleCoder.of())
-    val startLongsPCollection: PCollection<Double> = results.get(startLongs).setCoder(DoubleCoder.of())
+    val kvDescriptor =
+        TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TaxiTripOutput::class.java))
+
+    val tripsWithCenteredCoords = TupleTag<KV<TaxiRideL1, TaxiTripOutput>>()
+
+    val centeredResults = tripsPCollection.apply(
+        "Convert to KVs",
+        MapElements.into(
+            kvDescriptor
+        ).via(ConvertToKVFn())
+    )
+        .apply(
+            "Center lat/longs",
+            ParDo.of(CenteredLatLongFn(options.mapCenterPoint, tripsWithCenteredCoords, startLats, startLongs))
+                .withOutputTags(tripsWithCenteredCoords, TupleTagList.of(startLats).and(startLongs))
+        )
+
+    val tripsWithCenteredCoordsPCollection: PCollection<KV<TaxiRideL1, TaxiTripOutput>> =
+        centeredResults.get(tripsWithCenteredCoords)
+            .setCoder(
+                KvCoder.of(
+                    SerializableCoder.of(TaxiRideL1::class.java),
+                    SerializableCoder.of(TaxiTripOutput::class.java)
+                )
+            )
+
+    val startLatsPCollection: PCollection<Double> = centeredResults.get(startLats).setCoder(DoubleCoder.of())
+    val startLongsPCollection: PCollection<Double> = centeredResults.get(startLongs).setCoder(DoubleCoder.of())
 
     val maxPickupLat: PCollectionView<Double> =
         startLatsPCollection.apply("maxPickupLat", Combine.globally(Max.ofDoubles()).asSingletonView())
@@ -173,22 +194,12 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val meanPickupLong: PCollectionView<Double> =
         startLongsPCollection.apply("meanPickupLong", Mean.globally<Double>().asSingletonView())
 
-    val kvDescriptor =
-        TypeDescriptors.kvs(TypeDescriptor.of(TaxiRideL1::class.java), TypeDescriptor.of(TaxiTripOutput::class.java))
-
-
-    val tripOutputs = tripsPCollection.apply(
-        "Convert to KVs",
+    val tripOutputs = tripsWithCenteredCoordsPCollection.apply(
+        "Code cash payments",
         MapElements.into(
             kvDescriptor
-        ).via(ConvertToKVFn())
+        ).via(CodeCashFn())
     )
-        .apply(
-            "Code cash payments",
-            MapElements.into(
-                kvDescriptor
-            ).via(CodeCashFn())
-        )
         .apply(
             "Trip miles",
             MapElements.into(
@@ -221,7 +232,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
                     stdPickupLat,
                     stdPickupLong,
                     meanPickupLat,
-                    meanPickupLong
+                    meanPickupLong,
+                    options.mapCenterPoint
                 )
             ).withSideInputs(
                 maxPickupLat,
@@ -257,7 +269,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
         .apply(
             "Write Bigquery",
             BigQueryIO.writeTableRows()
-                .to("chicagotaxi.finaltaxi_encoded_el_test")
+                .to(options.outputTableSpec)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
         )
@@ -273,20 +285,6 @@ fun getPipeline(options: Demo1Options): Pipeline {
             TextIO.write()
                 .to(options.csvOutputPath)
         )
-
-//    tripOutputs.apply("Convert to Parquet",
-//        MapElements.into(
-//            TypeDescriptor.of(GenericRecord::class.java)
-//        ).via(OutputTaxiTripOutputFn())
-//    )
-//        .apply("Write Parquet",
-//            FileIO.write<GenericRecord>()
-//                .via(
-//                    ParquetIO.sink(TaxiTripOutput.SchemaGetter.schema(daysOfWeekList, monthsList))
-//                        .withCompressionCodec(CompressionCodecName.SNAPPY)
-//                )
-//                .to(options.parquetOutputPath)
-//        )
 
     tripOutputs.apply(
         "Convert to GenericRecord",

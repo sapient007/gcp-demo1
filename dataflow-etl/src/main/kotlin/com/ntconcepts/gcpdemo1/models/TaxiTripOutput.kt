@@ -13,8 +13,11 @@ data class TaxiTripOutput(
     var trip_miles: Double?,
     var company: String?,
     var ml_partition: String?,
+    var distance_from_center: Double?,
     var pickup_latitude: Double?,
     var pickup_longitude: Double?,
+    var pickup_lat_centered: Double?,
+    var pickup_long_centered: Double?,
     var pickup_lat_norm: Double?,
     var pickup_long_norm: Double?,
     var pickup_lat_std: Double?,
@@ -38,6 +41,9 @@ data class TaxiTripOutput(
         0.0,
         0.0,
         0.0,
+        0.0,
+        0.0,
+        0.0,
         HashMap<String, Int>(),
         HashMap<String, Int>(),
         HashMap<String, Int>()
@@ -53,8 +59,11 @@ data class TaxiTripOutput(
         printer.print(start_time_epoch)
         printer.print(trip_miles)
         printer.print(ml_partition)
+        printer.print(distance_from_center)
         printer.print(pickup_latitude)
         printer.print(pickup_longitude)
+        printer.print(pickup_lat_centered)
+        printer.print(pickup_long_centered)
         printer.print(pickup_lat_norm)
         printer.print(pickup_long_norm)
         printer.print(pickup_lat_std)
@@ -99,8 +108,11 @@ data class TaxiTripOutput(
         fields.add(Schema.Field("start_time_epoch", Schema.create(Schema.Type.LONG), "start_time_epoch", 0L))
         fields.add(Schema.Field("trip_miles", Schema.create(Schema.Type.DOUBLE), "trip_miles", 0.0))
         fields.add(Schema.Field("ml_partition", Schema.create(Schema.Type.STRING), "ml_partition", ""))
+        fields.add(Schema.Field("distance_from_center", Schema.create(Schema.Type.DOUBLE), "distance_from_center", 0.0))
         fields.add(Schema.Field("pickup_latitude", Schema.create(Schema.Type.DOUBLE), "pickup_latitude", 0.0))
         fields.add(Schema.Field("pickup_longitude", Schema.create(Schema.Type.DOUBLE), "pickup_longitude", 0.0))
+        fields.add(Schema.Field("pickup_lat_centered", Schema.create(Schema.Type.DOUBLE), "pickup_lat_centered", 0.0))
+        fields.add(Schema.Field("pickup_long_centered", Schema.create(Schema.Type.DOUBLE), "pickup_long_centered", 0.0))
         fields.add(Schema.Field("pickup_lat_norm", Schema.create(Schema.Type.DOUBLE), "pickup_lat_norm", 0.0))
         fields.add(Schema.Field("pickup_long_norm", Schema.create(Schema.Type.DOUBLE), "pickup_long_norm", 0.0))
         fields.add(Schema.Field("pickup_lat_std", Schema.create(Schema.Type.DOUBLE), "pickup_lat_std", 0.0))
