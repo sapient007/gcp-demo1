@@ -12,7 +12,8 @@ class CreateBQTable(
     val dropTable: ValueProvider<Boolean>,
     val dayOfWeekView: PCollectionView<List<String>>,
     val monthView: PCollectionView<List<String>>,
-    val companiesView: PCollectionView<List<String>>
+    val companiesView: PCollectionView<List<String>>,
+    val hotEncodeCompany: ValueProvider<Boolean>
 ) :
     DoFn<Boolean, Void>() {
 
@@ -34,11 +35,19 @@ class CreateBQTable(
         val daysOfWeek = c.sideInput(dayOfWeekView)
         val months = c.sideInput(monthView)
         val companies = prefixCompanies(c.sideInput(companiesView))
-        val schema = getTransformSchema(
-            OneHotSchemaWrapper(daysOfWeek, StandardSQLTypeName.INT64),
-            OneHotSchemaWrapper(months, StandardSQLTypeName.INT64),
-            OneHotSchemaWrapper(companies, StandardSQLTypeName.INT64)
-        )
+        val schema: Schema
+        if (hotEncodeCompany.get()) {
+            schema = getTransformSchema(
+                OneHotSchemaWrapper(daysOfWeek, StandardSQLTypeName.INT64),
+                OneHotSchemaWrapper(months, StandardSQLTypeName.INT64),
+                OneHotSchemaWrapper(companies, StandardSQLTypeName.INT64)
+            )
+        } else {
+            schema = getTransformSchema(
+                OneHotSchemaWrapper(daysOfWeek, StandardSQLTypeName.INT64),
+                OneHotSchemaWrapper(months, StandardSQLTypeName.INT64)
+            )
+        }
         val tableDefinition = StandardTableDefinition.of(schema)
         bigquery.create(TableInfo.of(tableId, tableDefinition))
 

@@ -20,6 +20,9 @@ class TripTimesFn(
 
         val trip = c.element().key
         val row = c.element().value.copy()
+
+        row.start_time_epoch = trip?.trip_start_timestamp as Long / 1000000
+
         row.daysOfWeekEncoded = row.daysOfWeekEncoded?.clone() as HashMap<String, Int>
         row.monthsEncoded = row.monthsEncoded?.clone() as HashMap<String, Int>
 
@@ -27,7 +30,7 @@ class TripTimesFn(
         val months = c.sideInput(monthsView)
 
         val startTrip: LocalDateTime =
-            LocalDateTime.ofEpochSecond(trip?.trip_start_timestamp as Long / 1000000, 0, ZoneOffset.UTC)
+            LocalDateTime.ofEpochSecond(trip.trip_start_timestamp / 1000000, 0, ZoneOffset.UTC)
         val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
         row.start_time = startTrip.format(timestampFormatter)

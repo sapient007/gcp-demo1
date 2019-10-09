@@ -10,11 +10,15 @@ interface Demo1Options : DataflowPipelineOptions {
     fun setTable(table: ValueProvider<String>)
     val dropTable: ValueProvider<Boolean>
     fun setDropTable(dropTable: ValueProvider<Boolean>)
+    val hotEncodeCompany: ValueProvider<Boolean>
+    fun setHotEncodeCompany(hotEncodeCompany: ValueProvider<Boolean>)
     val partitionWeights: ValueProvider<HashMap<String, Double>>
     fun setPartitionWeights(partitionWeights: ValueProvider<HashMap<String, Double>>)
-    val outputBucket: ValueProvider<String>
-    fun setOutputBucket(outputBucket: ValueProvider<String>)
-    val outputPath: ValueProvider<String>
-    fun setOutputPath(outputPath: ValueProvider<String>)
+    val csvOutputPath: ValueProvider<String>
+    fun setCsvOutputPath(csvOutputPath: ValueProvider<String>)
+    val parquetOutputPath: ValueProvider<String>
+    fun setParquetOutputPath(parquetOutputPath: ValueProvider<String>)
+    val avroOutputPath: ValueProvider<String>
+    fun setAvroOutputPath(avroOutputPath: ValueProvider<String>)
 
 }

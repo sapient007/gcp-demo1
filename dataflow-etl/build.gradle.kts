@@ -12,7 +12,12 @@ version = "1.0-SNAPSHOT"
 
 val beamVersion: String by project
 val bigqueryVersion: String by project
+val csvVersion: String by project
 //val args: String by project
+
+allprojects {
+    buildDir = File("C:/tmp/${rootProject.name}/${project.name}")
+}
 
 repositories {
     jcenter()
@@ -25,7 +30,9 @@ dependencies {
     implementation("org.apache.beam:beam-runners-direct-java:$beamVersion")
     implementation("org.apache.beam:beam-runners-google-cloud-dataflow-java:$beamVersion")
     implementation("org.apache.beam:beam-sdks-java-io-google-cloud-platform:$beamVersion")
+//    implementation("org.apache.beam:beam-sdks-java-io-parquet:$beamVersion")
     implementation("com.google.cloud:google-cloud-bigquery:$bigqueryVersion")
+    implementation("org.apache.commons:commons-csv:$csvVersion")
     testCompile("junit", "junit", "4.12")
 }
 

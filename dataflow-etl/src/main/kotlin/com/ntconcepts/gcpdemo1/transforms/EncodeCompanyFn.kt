@@ -3,11 +3,16 @@ package com.ntconcepts.gcpdemo1.transforms
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.utils.CleanForColumnName
+import org.apache.beam.sdk.options.ValueProvider
 import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollectionView
 
-class EncodeCompanyFn(val companiesView: PCollectionView<List<String>>, val companyPrefix: String) :
+class EncodeCompanyFn(
+    val hotEncodeCompany: ValueProvider<Boolean>,
+    val companiesView: PCollectionView<List<String>>,
+    val companyPrefix: String
+) :
     DoFn<KV<TaxiRideL1, TaxiTripOutput>, KV<TaxiRideL1, TaxiTripOutput>>() {
 
 
@@ -20,17 +25,19 @@ class EncodeCompanyFn(val companiesView: PCollectionView<List<String>>, val comp
         val companies = c.sideInput(companiesView)
 
         val cleanedCompany = CleanForColumnName.clean(trip?.company)
+        row.company = trip?.company
 
         //One-hot encode company
-        companies.forEach {
-            if (it == "${companyPrefix}${cleanedCompany}") {
-                row.companiesEncoded?.put("${companyPrefix}${cleanedCompany}", 1)
-            } else {
-                row.companiesEncoded?.put(it, 0)
+        if (hotEncodeCompany.get()) {
+            companies.forEach {
+                if (it == "${companyPrefix}${cleanedCompany}") {
+                    row.companiesEncoded?.put("${companyPrefix}${cleanedCompany}", 1)
+                } else {
+                    row.companiesEncoded?.put(it, 0)
+                }
             }
         }
 
-        row.company = trip?.company
         c.output(KV.of(trip, row))
     }
 
