@@ -1,8 +1,13 @@
+"""
+conda install -c conda-forge google-cloud-bigquery
+conda install pandas
+"""
+
 import logging
 from google.cloud import bigquery
 
 
-def run(project):
+def run():
     return
 
 
@@ -19,6 +24,4 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
-    project = 'ml-sandbox-1-191918'
-
-    run(project=project)
+    run()
