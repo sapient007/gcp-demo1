@@ -1,5 +1,4 @@
 import logging
-from google.cloud import bigquery
 
 
 def run():
@@ -15,7 +14,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
         handlers=[
-            logging.FileHandler('etl_testing.log'),
+            logging.FileHandler('predict_testing.log'),
             logging.StreamHandler()
         ])
 
