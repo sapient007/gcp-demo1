@@ -31,7 +31,6 @@ dependencies {
     implementation("org.apache.beam:beam-runners-direct-java:$beamVersion")
     implementation("org.apache.beam:beam-runners-google-cloud-dataflow-java:$beamVersion")
     implementation("org.apache.beam:beam-sdks-java-io-google-cloud-platform:$beamVersion")
-//    implementation("org.apache.beam:beam-sdks-java-io-parquet:$beamVersion")
     implementation("com.google.cloud:google-cloud-bigquery:$bigqueryVersion")
     implementation("org.apache.commons:commons-csv:$csvVersion")
     implementation("org.apache.sis.core:sis-referencing:$sisVersion")
@@ -59,3 +58,9 @@ tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }
 
+//tasks.register<JavaExec>("df-template") {
+//    dependsOn(":build")
+//    classpath = sourceSets.
+//    main = application.mainClassName
+//
+//}

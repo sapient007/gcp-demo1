@@ -2,6 +2,7 @@ package com.ntconcepts.gcpdemo1.transforms
 
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import com.ntconcepts.gcpdemo1.utils.CleanForColumnName
+import org.apache.beam.sdk.options.ValueProvider
 import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.values.TupleTag
 import org.slf4j.Logger
@@ -9,7 +10,8 @@ import org.slf4j.LoggerFactory
 
 class FilterRowsFn(
     val companies: TupleTag<String>,
-    val trips: TupleTag<TaxiRideL1>
+    val trips: TupleTag<TaxiRideL1>,
+    val hotEncodeCompany: ValueProvider<Boolean>
 ) :
     DoFn<TaxiRideL1, TaxiRideL1>() {
 
@@ -41,7 +43,8 @@ class FilterRowsFn(
             (trip.pickup_longitude != null && trip.pickup_longitude != 0.0)
         ) {
             out.get(trips).output(trip)
-            if (trip.company != null) {
+            //Only output companies if we're hot encoding
+            if (trip.company != null && hotEncodeCompany.get()) {
                 out.get(companies).output(CleanForColumnName.clean(trip.company))
             }
         }

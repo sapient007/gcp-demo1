@@ -10,10 +10,12 @@ import org.apache.beam.sdk.values.KV
 class OutputTaxiTripOutputFn : SimpleFunction<KV<TaxiRideL1, TaxiTripOutput>, GenericRecord>() {
 
     override fun apply(wrapper: KV<TaxiRideL1, TaxiTripOutput>): GenericRecord {
-        val record = GenericRecordBuilder(wrapper.value.getSchema())
+        val record = GenericRecordBuilder(wrapper.value.getAvroSchema())
             .set("cash", wrapper.value.cash)
             .set("year", wrapper.value.year)
             .set("start_time_epoch", wrapper.value.start_time_epoch)
+            .set("start_time_norm_midnight", wrapper.value.start_time_norm_midnight)
+            .set("start_time_norm_noon", wrapper.value.start_time_norm_noon)
             .set("trip_miles", wrapper.value.trip_miles)
             .set("ml_partition", wrapper.value.ml_partition)
             .set("distance_from_center", wrapper.value.distance_from_center)

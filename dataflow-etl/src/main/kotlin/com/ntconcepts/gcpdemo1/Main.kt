@@ -1,19 +1,21 @@
 package com.ntconcepts.gcpdemo1
 
 import com.google.api.services.bigquery.model.TableRow
-import com.google.cloud.bigquery.storage.v1beta1.ReadOptions
 import com.ntconcepts.gcpdemo1.accumulators.StdFn
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.transforms.*
+import com.ntconcepts.gcpdemo1.utils.CSVNamingFn
 import org.apache.avro.generic.GenericRecord
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.coders.*
 import org.apache.beam.sdk.io.AvroIO
+import org.apache.beam.sdk.io.FileIO
 import org.apache.beam.sdk.io.TextIO
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord
 import org.apache.beam.sdk.options.PipelineOptionsFactory
+import org.apache.beam.sdk.options.ValueProvider
 import org.apache.beam.sdk.transforms.*
 import org.apache.beam.sdk.values.*
 
@@ -44,8 +46,8 @@ val daysOfWeekList = listOf(
 
 fun getDaysOfWeekView(p: Pipeline): PCollectionView<List<String>> {
     val days = daysOfWeekList
-    return p.apply("Get one-hot-encoded day of the week keys", Create.of(days)).setCoder(StringUtf8Coder.of())
-        .apply("Make one-hot week view", View.asList())
+    return p.apply("dayOfTheWeek PCollection", Create.of(days)).setCoder(StringUtf8Coder.of())
+        .apply("dayOfTheWeek View", View.asList())
 }
 
 val monthsList = listOf(
@@ -64,21 +66,24 @@ val monthsList = listOf(
 )
 
 fun getMonthView(p: Pipeline): PCollectionView<List<String>> {
-    return p.apply("Get one-hot-encoded month keys", Create.of(monthsList)).setCoder(StringUtf8Coder.of())
-        .apply("Make one-hot month view", View.asList())
+    return p.apply("months PCollection", Create.of(monthsList)).setCoder(StringUtf8Coder.of())
+        .apply("months View", View.asList())
 }
 
 fun getCompaniesView(p: PCollection<String>): PCollectionView<List<String>> {
+
     return p.apply(
-        "companies",
+        "companies Distinct",
         Distinct.create<String>()
     )
-        .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction<String, String> {
-            "${companyPrefix}${it}"
-        }))
-        .apply(View.asList<String>())
+        .apply(
+            "Map prefix to company",
+            MapElements.into(TypeDescriptors.strings()).via(SerializableFunction<String, String> {
+                "${companyPrefix}${it}"
+            })
+        )
+        .apply("companies View", View.asList<String>())
 }
-
 
 fun getPipeline(options: Demo1Options): Pipeline {
     val p = Pipeline.create(options)
@@ -91,13 +96,13 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val dayOfWeekView = getDaysOfWeekView(p)
     val monthView = getMonthView(p)
 
-    val tableReadOptions = ReadOptions.TableReadOptions.newBuilder()
-        .setRowRestriction("pickup_latitude is not null")
-        .build()
+//    val tableReadOptions = ReadOptions.TableReadOptions.newBuilder()
+//        .setRowRestriction("pickup_latitude is not null")
+//        .build()
 
     val results: PCollectionTuple =
         p.apply(
-            "Get raw data from Chicago taxi rides dataset",
+            "Get Chicago taxi rides",
             BigQueryIO.read(SerializableFunction { r: SchemaAndRecord ->
                 TaxiRideL1(
                     if (r.record.get("unique_key") != null) r.record.get("unique_key").toString() else "",
@@ -126,15 +131,15 @@ fun getPipeline(options: Demo1Options): Pipeline {
                 )
             }
             )
-//                .from("bigquery-public-data:chicago_taxi_trips.taxi_trips")
+                .withoutValidation()
+                .from(options.inputTableSpec)
 //                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
-                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 1000")
-                .usingStandardSql()
-
+//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 100000")
+//                .usingStandardSql()
         )
             .apply(
                 "Filter rows",
-                ParDo.of(FilterRowsFn(companies, trips)).withOutputTags(
+                ParDo.of(FilterRowsFn(companies, trips, options.hotEncodeCompany)).withOutputTags(
                     trips,
                     TupleTagList.of(companies)
                 )
@@ -152,7 +157,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val tripsWithCenteredCoords = TupleTag<KV<TaxiRideL1, TaxiTripOutput>>()
 
     val centeredResults = tripsPCollection.apply(
-        "Convert to KVs",
+        "Map to KVs",
         MapElements.into(
             kvDescriptor
         ).via(ConvertToKVFn())
@@ -195,19 +200,19 @@ fun getPipeline(options: Demo1Options): Pipeline {
         startLongsPCollection.apply("meanPickupLong", Mean.globally<Double>().asSingletonView())
 
     val tripOutputs = tripsWithCenteredCoordsPCollection.apply(
-        "Code cash payments",
+        "Map cash payments",
         MapElements.into(
             kvDescriptor
         ).via(CodeCashFn())
     )
         .apply(
-            "Trip miles",
+            "Map trip miles",
             MapElements.into(
                 kvDescriptor
             ).via(TripMilesFn())
         )
         .apply(
-            "Apply ML partitions",
+            "Make ML partitions",
             ParDo.of(SetMLPartitionsFn(options.partitionWeights))
         )
         .apply(
@@ -222,7 +227,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
             )
         )
         .apply(
-            "Process pickup latlong fields",
+            "Map pickup latlong",
             ParDo.of(
                 TransformLatLongFn(
                     maxPickupLat,
@@ -247,11 +252,27 @@ fun getPipeline(options: Demo1Options): Pipeline {
             )
         )
 
+    writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
+    writeAvro(options, tripOutputs)
+    writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
+
+    return p
+}
+
+fun writeBQ(
+    options: Demo1Options,
+    p: Pipeline,
+    e: PCollection<KV<TaxiRideL1, TaxiTripOutput>>,
+    dayOfWeekView: PCollectionView<List<String>>,
+    monthView: PCollectionView<List<String>>,
+    companiesView: PCollectionView<List<String>>
+) {
+
     p.apply(
         "Create table",
         BQCreateTable(
-            options.dataset,
-            options.table,
+            options.outputDataset,
+            options.outputTable,
             options.dropTable,
             dayOfWeekView,
             monthView,
@@ -260,8 +281,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
     )
 
-    tripOutputs.apply(
-        "Convert to TableRows ", MapElements.into(
+    e.apply(
+        "Map to TableRows ", MapElements.into(
             TypeDescriptor.of(TableRow::class.java)
         )
             .via(OutputTableRowsFn())
@@ -273,32 +294,88 @@ fun getPipeline(options: Demo1Options): Pipeline {
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
         )
+}
 
-    tripOutputs.apply(
-        "Convert to CSV rows",
-        MapElements.into(
-            TypeDescriptors.strings()
-        ).via(OutputCSV())
+fun writeCSVHeader(
+    p: Pipeline,
+    headerOutputPath: ValueProvider<String>,
+    dayOfWeekView: PCollectionView<List<String>>,
+    monthView: PCollectionView<List<String>>,
+    companiesView: PCollectionView<List<String>>
+) {
+    p.apply("Make CSV header", Create.of(TaxiTripOutput())).setCoder(SerializableCoder.of(TaxiTripOutput::class.java))
+        .apply(
+            "Add encoded times", ParDo.of(
+                InputsForEmptyOutputFn(dayOfWeekView, monthView, companiesView)
+            ).withSideInputs(dayOfWeekView, monthView, companiesView)
+        )
+        .apply(
+            FileIO.write<TaxiTripOutput>()
+                .via(Contextful.fn(
+                    SerializableFunction {
+                        it.toCSVHeader()
+                    }
+                ), TextIO.sink())
+                .to(headerOutputPath)
+                .withSuffix(".csv")
+                .withNumShards(1)
+        )
+
+}
+
+fun writeCSV(
+    options: Demo1Options,
+    p: Pipeline,
+    kvs: PCollection<KV<TaxiRideL1, TaxiTripOutput>>,
+    dayOfWeekView: PCollectionView<List<String>>,
+    monthView: PCollectionView<List<String>>,
+    companiesView: PCollectionView<List<String>>
+) {
+
+    writeCSVHeader(p, options.csvHeaderOutputPath, dayOfWeekView, monthView, companiesView)
+
+    kvs.apply(
+        "Map to TaxiTripOutput",
+        MapElements.into(TypeDescriptor.of(TaxiTripOutput::class.java))
+            .via(SerializableFunction<KV<TaxiRideL1, TaxiTripOutput>, TaxiTripOutput> {
+                it.value
+            })
     )
         .apply(
             "Write CSV",
-            TextIO.write()
+            FileIO.writeDynamic<String, TaxiTripOutput>()
+                .by(SerializableFunction {
+                    it.ml_partition
+                })
+                .via(Contextful.fn(
+                    SerializableFunction {
+                        it.toCSV()
+                    }
+                ), TextIO.sink())
                 .to(options.csvOutputPath)
+                .withDestinationCoder(StringUtf8Coder.of())
+                .withNumShards(30)
+                .withNaming(
+                    Contextful.fn(
+                        SerializableFunction {
+                            CSVNamingFn(it)
+                        })
+                )
         )
+}
 
-    tripOutputs.apply(
-        "Convert to GenericRecord",
+fun writeAvro(options: Demo1Options, p: PCollection<KV<TaxiRideL1, TaxiTripOutput>>) {
+    p.apply(
+        "Map to GenericRecord",
         MapElements.into(
             TypeDescriptor.of(GenericRecord::class.java)
         ).via(OutputTaxiTripOutputFn())
     )
-        .setCoder(AvroCoder.of(TaxiTripOutput.SchemaGetter.schema(daysOfWeekList, monthsList)))
+        .setCoder(AvroCoder.of(TaxiTripOutput.AvroSchemaGetter.schema(daysOfWeekList, monthsList)))
         .apply(
             "Write Avro",
-            AvroIO.writeGenericRecords(TaxiTripOutput.SchemaGetter.schema(daysOfWeekList, monthsList))
+            AvroIO.writeGenericRecords(TaxiTripOutput.AvroSchemaGetter.schema(daysOfWeekList, monthsList))
                 .to(options.avroOutputPath)
                 .withSuffix(".avro")
         )
-
-    return p
 }

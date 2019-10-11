@@ -11,8 +11,12 @@ class OutputTableRowsFn : SimpleFunction<KV<TaxiRideL1, TaxiTripOutput>, TableRo
         var row = wrapper.value
 
         var tableRow = TableRow()
+            .set("unique_key", row.unique_key)
             .set("cash", row.cash)
             .set("year", row.year)
+            .set("start_time", row.start_time)
+            .set("start_time_norm_midnight", row.start_time_norm_midnight)
+            .set("start_time_norm_noon", row.start_time_norm_noon)
             .set("start_time", row.start_time)
             .set("trip_miles", row.trip_miles)
             .set("company", row.company)

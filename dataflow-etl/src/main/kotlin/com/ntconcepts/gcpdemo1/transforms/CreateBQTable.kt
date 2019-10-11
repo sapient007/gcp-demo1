@@ -67,6 +67,12 @@ class CreateBQTable(
         val fields = ArrayList<Field>()
         fields.add(
             Field.newBuilder(
+                "unique_key",
+                StandardSQLTypeName.STRING
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
                 "cash",
                 StandardSQLTypeName.INT64
             ).setMode(Field.Mode.REQUIRED).build()
@@ -81,6 +87,18 @@ class CreateBQTable(
             Field.newBuilder(
                 "start_time",
                 StandardSQLTypeName.TIMESTAMP
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
+                "start_time_norm_midnight",
+                StandardSQLTypeName.FLOAT64
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
+                "start_time_norm_noon",
+                StandardSQLTypeName.FLOAT64
             ).setMode(Field.Mode.REQUIRED).build()
         )
         fields.add(
