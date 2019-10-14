@@ -7,23 +7,26 @@ import org.apache.beam.sdk.options.ValueProvider
 import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.values.KV
 
-class SetMLPartitionsFn(val mlPartionWeights: ValueProvider<HashMap<String, Double>>) :
+class SetMLPartitionsFn(
+    private val mlPartitionTrainWeight: ValueProvider<Double>,
+    private val mlPartitionTestWeight: ValueProvider<Double>,
+    private val mlPartitionValidationWeight: ValueProvider<Double>
+) :
     DoFn<KV<TaxiRideL1, TaxiTripOutput>, KV<TaxiRideL1, TaxiTripOutput>>() {
 
     private val weights = RandomCollection<String>()
 
-    private fun setupWeights() {
+    @StartBundle
+    fun setupWeights() {
         if (weights.size() == 0) {
-            val ws = mlPartionWeights.get()
-            ws.forEach {
-                weights.add(it.value, it.key)
-            }
+            weights.add(mlPartitionTrainWeight.get(), "train")
+            weights.add(mlPartitionTestWeight.get(), "test")
+            weights.add(mlPartitionValidationWeight.get(), "validation")
         }
     }
 
     @ProcessElement
     fun apply(c: ProcessContext) {
-        setupWeights()
         val row = c.element().value.copy()
         row.ml_partition = weights.next()
         c.output(KV.of(c.element().key, row))

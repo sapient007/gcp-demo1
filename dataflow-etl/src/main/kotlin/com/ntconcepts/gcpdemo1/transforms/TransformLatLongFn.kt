@@ -12,29 +12,42 @@ import org.opengis.referencing.crs.ProjectedCRS
 import java.awt.geom.Point2D
 
 class TransformLatLongFn(
-    val maxLatView: PCollectionView<Double>,
-    val minLatView: PCollectionView<Double>,
-    val maxLongView: PCollectionView<Double>,
-    val minLongView: PCollectionView<Double>,
-    val stdPickupLatView: PCollectionView<Double>,
-    val stdPickupLongView: PCollectionView<Double>,
-    val meanPickupLatView: PCollectionView<Double>,
-    val meanPickupLongView: PCollectionView<Double>,
-    val mapCenterPoint: ValueProvider<Point2D.Double>
+    private val maxLatView: PCollectionView<Double>,
+    private val minLatView: PCollectionView<Double>,
+    private val maxLongView: PCollectionView<Double>,
+    private val minLongView: PCollectionView<Double>,
+    private val stdPickupLatView: PCollectionView<Double>,
+    private val stdPickupLongView: PCollectionView<Double>,
+    private val meanPickupLatView: PCollectionView<Double>,
+    private val meanPickupLongView: PCollectionView<Double>,
+    private val mapCenterLat: ValueProvider<Double>,
+    private val mapCenterLong: ValueProvider<Double>
 ) :
     DoFn<KV<TaxiRideL1, TaxiTripOutput>, KV<TaxiRideL1, TaxiTripOutput>>() {
 
     lateinit var crs: ProjectedCRS
+    private lateinit var mapCenterPoint: Point2D.Double
 
-    private fun initCRS(mapCenterPoint: Point2D.Double) {
+    private fun initCRS() {
         if (!::crs.isInitialized) {
             crs = CommonCRS.WGS84.universal(mapCenterPoint.y, mapCenterPoint.x)
         }
     }
 
+    private fun initCenterPoint(lat: Double, long: Double) {
+        if (!::mapCenterPoint.isInitialized) {
+            mapCenterPoint = Point2D.Double(long, lat)
+        }
+    }
+
+    @StartBundle
+    fun start(c: StartBundleContext) {
+        initCenterPoint(mapCenterLat.get(), mapCenterLong.get())
+        initCRS()
+    }
+
     @ProcessElement
     fun apply(c: ProcessContext) {
-        initCRS(mapCenterPoint.get())
 
         val trip = c.element().key
         val row = c.element().value.copy()
@@ -50,7 +63,7 @@ class TransformLatLongFn(
 
         if (trip?.pickup_latitude != null && trip.pickup_longitude != null) {
             val calc = GeodeticCalculator.create(crs)
-            calc.setStartGeographicPoint(mapCenterPoint.get().y, mapCenterPoint.get().x)
+            calc.setStartGeographicPoint(mapCenterPoint.y, mapCenterPoint.x)
             calc.setEndGeographicPoint(trip.pickup_latitude, trip.pickup_longitude)
             row.distance_from_center = calc.geodesicDistance / 1000
         }

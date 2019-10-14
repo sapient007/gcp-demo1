@@ -1,0 +1,90 @@
+{
+  "name": "NT Concepts Demo 1",
+  "description": "Demo 1 for Machine Learning Partner Specialization Certification",
+  "parameters": [
+    {
+      "name": "outputDataset",
+      "label": "Bigquery output dataset",
+      "help_text": "Name of the output dataset within the project",
+      "is_optional": false
+    },
+    {
+      "name": "outputTable",
+      "label": "Bigquery output table",
+      "help_text": "Name of the output table within the project",
+      "is_optional": false
+    },
+    {
+      "name": "outputTableSpec",
+      "label": "Bigquery output tablespec",
+      "help_text": "Output table. Example: project:dataset.table",
+      "is_optional": false
+    },
+    {
+      "name": "inputTableSpec",
+      "label": "Bigquery input tablespec",
+      "help_text": "Input table. Defaults to: bigquery-public-data:chicago_taxi_trips.taxi_trips",
+      "is_optional": true
+    },
+    {
+      "name": "dropTable",
+      "label": "Drop output table",
+      "help_text": "Whether to delete and re-create the output Bigquery table. Defaults to true",
+      "is_optional": true
+    },
+    {
+      "name": "hotEncodeCompany",
+      "label": "One-hot-encode company names",
+      "help_text": "Whether to one-hot-encode company names. Defaults to false",
+      "is_optional": true
+    },
+    {
+      "name": "mlPartitionTrainWeight",
+      "label": "ML training partition selection weight",
+      "help_text": "Weight to apply to random partitioning of training data. Example: 70 for 70 percent. Default: 70.0",
+      "is_optional": true
+    },
+    {
+      "name": "mlPartitionTestWeight",
+      "label": "ML testing partition selection weight",
+      "help_text": "Weight to apply to random partitioning of testing data. Example: 15 for 15 percent. Default: 15.0",
+      "is_optional": true
+    },
+    {
+      "name": "mlPartitionValidationWeight",
+      "label": "ML validation partition selection weight",
+      "help_text": "Weight to apply to random partitioning of validation data. Example: 15 for 15 percent. Default: 15.0",
+      "is_optional": true
+    },
+    {
+      "name": "csvShards",
+      "label": "CSV file shard size",
+      "help_text": "Number of CSV files to shard ML partition outputs. Note: These shards are combined with gsutil, which supports a maximum of 32 objects. Example: 30. Default: 30",
+      "is_optional": true
+    },
+    {
+      "name": "csvOutputPath",
+      "label": "CSV output path",
+      "help_text": "GCS URI for path to output CSV. Example: gs://bucket/path/to/csv/",
+      "is_optional": false
+    },
+    {
+      "name": "csvHeaderOutputPath",
+      "label": "CSV header output path",
+      "help_text": "GCS URI for path to output CSV header file. Example: gs://bucket/path/to/csv/header/",
+      "is_optional": false
+    },
+    {
+      "name": "mapCenterLat",
+      "label": "Center map latitude",
+      "help_text": "Latitude in radians to center row latitude values on. Example: 41.8839. Default: 41.8839 (Chicago City Hall)",
+      "is_optional": true
+    },
+    {
+      "name": "mapCenterLong",
+      "label": "Center map longitude",
+      "help_text": "Longitude in radians to center row latitude values on. Example: -87.6319. Default: -87.6319 (Chicago City Hall)",
+      "is_optional": true
+    }
+  ]
+}

@@ -77,21 +77,10 @@ class TripTimesFn(
             return 0.0
         }
 
-//        val seconds: Int = if (scaleTo == scaleTimes.NOON &&
-//            time.hour > 12
-//        ) {
-//            //Time is past 12:00:00 and we want to scale between -1 and 1 (12:00:00 is 0)
-//            val resetTime = time.minusHours(12)
-//            (resetTime.hour * 3600) + (time.minute * 60) + time.second
-//        } else {
-//            (time.hour * 3600) + (time.minute * 60) + time.second
-//        }
-
-        val seconds: Double =  (time.hour * 3600.0) + (time.minute * 60) + time.second
-
+        val seconds: Double = (time.hour * 3600.0) + (time.minute * 60) + time.second
 
         return if (scaleTo == scaleTimes.NOON) {
-            //if time is > 12:00:00, min is 12:00:00 and max is 23:59:59
+            //If time is > 12:00:00, min is 12:00:00 and max is 23:59:59
             if (time.hour > 12) {
                 ((seconds - min12_h23) / (max12_h23 - min12_h23))
             } else {

@@ -133,7 +133,6 @@ fun getPipeline(options: Demo1Options): Pipeline {
             )
                 .withoutValidation()
                 .from(options.inputTableSpec)
-//                .withMethod(BigQueryIO.TypedRead.Method.DIRECT_READ)
 //                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 100000")
 //                .usingStandardSql()
         )
@@ -164,7 +163,15 @@ fun getPipeline(options: Demo1Options): Pipeline {
     )
         .apply(
             "Center lat/longs",
-            ParDo.of(CenteredLatLongFn(options.mapCenterPoint, tripsWithCenteredCoords, startLats, startLongs))
+            ParDo.of(
+                CenteredLatLongFn(
+                    options.mapCenterLat,
+                    options.mapCenterLong,
+                    tripsWithCenteredCoords,
+                    startLats,
+                    startLongs
+                )
+            )
                 .withOutputTags(tripsWithCenteredCoords, TupleTagList.of(startLats).and(startLongs))
         )
 
@@ -213,7 +220,13 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
         .apply(
             "Make ML partitions",
-            ParDo.of(SetMLPartitionsFn(options.partitionWeights))
+            ParDo.of(
+                SetMLPartitionsFn(
+                    options.mlPartitionTrainWeight,
+                    options.mlPartitionTestWeight,
+                    options.mlPartitionValidationWeight
+                )
+            )
         )
         .apply(
             "Create trip time fields",
@@ -238,7 +251,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
                     stdPickupLong,
                     meanPickupLat,
                     meanPickupLong,
-                    options.mapCenterPoint
+                    options.mapCenterLat,
+                    options.mapCenterLong
                 )
             ).withSideInputs(
                 maxPickupLat,
@@ -253,7 +267,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
 
     writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
-    writeAvro(options, tripOutputs)
+//    writeAvro(options, tripOutputs)
     writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 
     return p
@@ -354,7 +368,7 @@ fun writeCSV(
                 ), TextIO.sink())
                 .to(options.csvOutputPath)
                 .withDestinationCoder(StringUtf8Coder.of())
-                .withNumShards(30)
+                .withNumShards(options.csvShards)
                 .withNaming(
                     Contextful.fn(
                         SerializableFunction {

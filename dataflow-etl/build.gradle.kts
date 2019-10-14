@@ -1,4 +1,3 @@
-import org.gradle.internal.impldep.aQute.bnd.build.Run
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -51,6 +50,14 @@ tasks.getByName<JavaExec>("run") {
     }
 }
 
+sourceSets {
+    main {
+        kotlin {
+
+        }
+    }
+}
+
 configure<JavaPluginConvention> {
     sourceCompatibility = JavaVersion.VERSION_1_8
 }
@@ -60,7 +67,7 @@ tasks.withType<KotlinCompile> {
 
 //tasks.register<JavaExec>("df-template") {
 //    dependsOn(":build")
-//    classpath = sourceSets.
+//    classpath = sourceSets.main.javaClass.
 //    main = application.mainClassName
 //
 //}
