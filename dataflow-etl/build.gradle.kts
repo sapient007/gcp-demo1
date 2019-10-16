@@ -50,24 +50,9 @@ tasks.getByName<JavaExec>("run") {
     }
 }
 
-sourceSets {
-    main {
-        kotlin {
-
-        }
-    }
-}
-
 configure<JavaPluginConvention> {
     sourceCompatibility = JavaVersion.VERSION_1_8
 }
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "1.8"
 }
-
-//tasks.register<JavaExec>("df-template") {
-//    dependsOn(":build")
-//    classpath = sourceSets.main.javaClass.
-//    main = application.mainClassName
-//
-//}

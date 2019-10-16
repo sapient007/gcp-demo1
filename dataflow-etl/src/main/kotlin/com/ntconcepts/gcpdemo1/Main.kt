@@ -133,7 +133,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
             )
                 .withoutValidation()
                 .from(options.inputTableSpec)
-//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 100000")
+//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 10000")
 //                .usingStandardSql()
         )
             .apply(
@@ -155,12 +155,13 @@ fun getPipeline(options: Demo1Options): Pipeline {
 
     val tripsWithCenteredCoords = TupleTag<KV<TaxiRideL1, TaxiTripOutput>>()
 
-    val centeredResults = tripsPCollection.apply(
+    val centeredResults = tripsPCollection
+        .apply(
         "Map to KVs",
         MapElements.into(
             kvDescriptor
         ).via(ConvertToKVFn())
-    )
+        )
         .apply(
             "Center lat/longs",
             ParDo.of(
@@ -265,7 +266,10 @@ fun getPipeline(options: Demo1Options): Pipeline {
                 meanPickupLong
             )
         )
-
+        .apply(
+            "Sample data",
+            ParDo.of(SampleDataFn(options.sampleSize))
+        )
     writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 //    writeAvro(options, tripOutputs)
     writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)

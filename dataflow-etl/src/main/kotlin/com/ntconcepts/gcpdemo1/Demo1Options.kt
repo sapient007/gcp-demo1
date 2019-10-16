@@ -91,4 +91,10 @@ interface Demo1Options : DataflowPipelineOptions {
     val mapCenterLong: ValueProvider<Double>
 
     fun setMapCenterLong(mapCenterLong: ValueProvider<Double>)
+
+    @get:Description("Percent of data to sample. Example: 0-100. Default: 100")
+    @get:Default.Integer(100)
+    val sampleSize: ValueProvider<Int>
+
+    fun setSampleSize(sampleSize: ValueProvider<Int>)
 }
