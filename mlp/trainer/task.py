@@ -1,39 +1,24 @@
 import argparse
-import numpy
-import pandas
-import tensorflow as tf
-import keras
-from keras import backend as K
-from tensorflow.keras.models import model_from_json
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-import pickle
-from collections import Counter
-from matplotlib import pyplot
-import h5py
-import os
-import json
-import talos as ta
+
+import model
 
 
 def train_and_evaluate(args):
     """
-
+    TODO: description
     :param args:
     :return:
     """
 
-    return
+    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--parameter',
-        nargs='+',
-        help='Help text',
-        default=['Default value'])
+        '--filename',
+        type=str,
+        help='GCF filename of data',
+        default='gs://gcp-cert-demo-1/test/results-20191007-193432.csv')
     args, _ = parser.parse_known_args()
     train_and_evaluate(args)

@@ -146,7 +146,3 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
 
     # Step 5: Return the history output and synced back cpu model.
     return out, tpu_model.sync_to_cpu()
-
-
-if __name__ == '__main__':
-    process_data('gs://gcp-cert-demo-1/test/results-20191007-193432.csv')
