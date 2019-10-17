@@ -2,10 +2,14 @@ import os
 import numpy as np
 import pandas as pd
 
-import tensorflow as tf
+from tensorflow import gfile
+from tensorflow import keras
+from tensorflow import contrib
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
+
+from talos.model.normalizers import lr_normalizer
 
 
 def scale_data(data, col_index, scaler):
@@ -26,15 +30,15 @@ def scale_data(data, col_index, scaler):
     return data, scaler
 
 
-def process_data(file_path):
+def process_data(filename):
     """
     TODO: description
-    :param file_path:
+    :param filename:
     :return:
     """
 
     # read in the data
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(gfile.Open(filename))
 
     # drop unusused columns
     df_ready = df.drop(
@@ -87,39 +91,39 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     """
 
     # Step 1: reset the tensorflow backend session.
-    tf.keras.backend.clear_session()
+    keras.backend.clear_session()
 
     # Step 2: Define the model with variable hyperparameters.
-    model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.Dense(
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(
         int(params['dense_neurons_1']),
         input_dim=x_train.shape[1:],
         kernel_initializer=params['kernel_initial_1']
     ))
-    model.add(tf.keras.layers.BatchNormalization('dense_neurons_1'))
-    model.add(tf.keras.layers.Activation(activation=params['activation_1']))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
-    model.add(tf.keras.layers.Dense(int(
+    model.add(keras.layers.BatchNormalization('dense_neurons_1'))
+    model.add(keras.layers.Activation(activation=params['activation_1']))
+    model.add(keras.layers.Dropout(float(params['dropout_rate_1'])))
+    model.add(keras.layers.Dense(int(
         params['dense_neurons_2']),
         kernel_initializer=params['kernel_initial_2'],
         activation=params['activation_2']
     ))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
-    model.add(tf.keras.layers.Dense(
+    model.add(keras.layers.Dropout(float(params['dropout_rate_2'])))
+    model.add(keras.layers.Dense(
         int(params['dense_neurons_3']),
         kernel_initializer=params['kernel_initial_3'],
         activation='activation_3'
     ))
-    model.add(tf.keras.layers.Dense(
+    model.add(keras.layers.Dense(
         1,
         activation='sigmoid'
     ))
 
     # Step 3: conver the model to tpu model and compile with tensorflow optimizer.
-    tpu_model = tf.contrib.tpu.keras_to_tpu_model(
+    tpu_model = contrib.tpu.keras_to_tpu_model(
         model,
-        strategy=tf.contrib.tpu.TPUDistributionStrategy(
-            tf.contrib.cluster_resolver.TPUClusterResolver(tpu='grpc://' + os.environ['COLAB_TPU_ADDR'])
+        strategy=contrib.tpu.TPUDistributionStrategy(
+            contrib.cluster_resolver.TPUClusterResolver(tpu='grpc://' + os.environ['COLAB_TPU_ADDR'])
         )
     )
     tpu_model.compile(
@@ -127,7 +131,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
         loss='binary_crossentropy',
         metrics=['accuracy', 'fmeasure']
     )
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=50)
+    es = keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=50)
 
     # Step 4: Train the model on TPU with fixed batch size.
     out = tpu_model.fit(
@@ -142,3 +146,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
 
     # Step 5: Return the history output and synced back cpu model.
     return out, tpu_model.sync_to_cpu()
+
+
+if __name__ == '__main__':
+    process_data('gs://gcp-cert-demo-1/test/results-20191007-193432.csv')
