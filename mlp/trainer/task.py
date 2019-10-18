@@ -62,62 +62,62 @@ if __name__ == '__main__':
     parser.add_argument(
         '--dense-neurons-1',
         type=int,
-        help='Number of neurons in first model layer',
+        help='Number of neurons in first model layer, default=64',
         default=64)
     parser.add_argument(
         '--dense-neurons-2',
         type=int,
-        help='Number of neurons in second model layer',
+        help='Number of neurons in second model layer, default=32',
         default=32)
     parser.add_argument(
         '--dense-neurons-3',
         type=int,
-        help='Number of neurons in third model layer',
+        help='Number of neurons in third model layer, default=8',
         default=8)
     parser.add_argument(
         '--activation',
         type=str,
-        help='Activation function',
+        help='Activation function, default=relu',
         default='relu')
     parser.add_argument(
         '--dropout-rate-1',
         type=float,
-        help='Dropout rate for first model layer',
+        help='Dropout rate for first model layer, default=0.1',
         default=0.1)
     parser.add_argument(
         '--dropout-rate-2',
         type=float,
-        help='Dropout rate for second model layer',
+        help='Dropout rate for second model layer, default=0.1',
         default=0.1)
     parser.add_argument(
         '--dropout-rate-3',
         type=float,
-        help='Dropout rate for third model layer',
+        help='Dropout rate for third model layer, default=0.1',
         default=0.1)
     parser.add_argument(
         '--optimizer',
         type=str,
-        help='Optimizer function',
+        help='Optimizer function, default=adam',
         default='adam')
     parser.add_argument(
         '--learning-rate',
         type=float,
-        help='Learning rate',
+        help='Learning rate, default=0.1',
         default=0.1)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,
-        help='Kernel initializer for first model layer',
+        help='Kernel initializer for first model layer, default=normal',
         default='normal')
     parser.add_argument(
         '--kernel-initial-2',
         type=str,
-        help='Kernel initializer for second model layer',
+        help='Kernel initializer for second model layer, default=normal',
         default='normal')
     parser.add_argument(
         '--kernel-initial-3',
         type=str,
-        help='Kernel initializer for third model layer',
+        help='Kernel initializer for third model layer, default=normal',
         default='normal')
     args, _ = parser.parse_known_args()
     train_and_evaluate(args)
