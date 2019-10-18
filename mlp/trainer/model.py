@@ -7,11 +7,16 @@ import tensorflow.keras.backend as K
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
-from talos.model.normalizers import lr_normalizer
+# from talos.model.normalizers import lr_normalizer
 
 
 def download_data_from_gcs(filename):
-    # TODO - Implement - or rather move to task.py
+    """
+    TODO - Implement - or rather move to task.py
+    :param filename:
+    :return:
+    """
+
     return filename
 
 
@@ -41,7 +46,7 @@ def process_data(filename):
     """
 
     # read in the data
-    df = pd.read_csv(filename)
+    df = pd.read_csv(tf.gfile.Open(filename))
 
     # drop unusused columns
     df_ready = df.drop(
@@ -136,7 +141,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     :param params:
     :return:
     """
-    
+
     # Step 1: reset the tensorflow backend session.
     K.clear_session()
 
@@ -168,19 +173,27 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
 
     # Step 3: =compile with tensorflow optimizer.
     model.compile(
-        optimizer=params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
+        optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
         loss='binary_crossentropy',
         metrics=['accuracy', f1_metric]
     )
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=50)
+    es = tf.keras.callbacks.EarlyStopping(
+        monitor='val_loss',
+        mode='min',
+        verbose=0,
+        patience=50
+    )
 
     # Step 4: Train the model on TPU with fixed batch size.
-    out = model.fit(
-        x_train, y_train, epochs=1000, batch_size=1024,
+    history = model.fit(
+        x_train,
+        y_train,
+        epochs=1000,
+        batch_size=16,
         verbose=0,
         validation_data=(x_val, y_val),
         callbacks=[es]
     )
 
     # Step 5: Return the history output and synced back cpu model.
-    return out, model
+    return history, model
