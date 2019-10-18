@@ -1,6 +1,6 @@
 import argparse
 
-import model
+import trainer.model as model
 
 
 def train_and_evaluate(args):
