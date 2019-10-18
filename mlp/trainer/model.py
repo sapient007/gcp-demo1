@@ -7,7 +7,7 @@ import tensorflow.keras.backend as K
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
-# from talos.model.normalizers import lr_normalizer
+from talos.model.normalizers import lr_normalizer
 
 
 def download_data_from_gcs(filename):
