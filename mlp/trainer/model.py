@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+
 import tensorflow.keras.backend as K
+from tf.keras.models import Sequential
+from tf.keras import layers
+from tf.keras.callbacks import EarlyStopping
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
@@ -137,30 +140,30 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     """
 
     # Step 1: reset the tensorflow backend session.
-    tf.keras.backend.clear_session()
+    K.clear_session()
 
     # Step 2: Define the model with variable hyperparameters.
-    model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.Dense(
+    model = Sequential()
+    model.add(layers.Dense(
         int(params['dense_neurons_1']),
         input_dim=x_train.shape[1],
         kernel_initializer=params['kernel_initial_1']
     ))
-    model.add(tf.keras.layers.BatchNormalization(axis=1))
-    model.add(tf.keras.layers.Activation(activation=params['activation']))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
-    model.add(tf.keras.layers.Dense(
+    model.add(layers.BatchNormalization(axis=1))
+    model.add(layers.Activation(activation=params['activation']))
+    model.add(layers.Dropout(float(params['dropout_rate_1'])))
+    model.add(layers.Dense(
         int(params['dense_neurons_2']),
         kernel_initializer=params['kernel_initial_2'],
         activation=params['activation']
     ))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
-    model.add(tf.keras.layers.Dense(
+    model.add(layers.Dropout(float(params['dropout_rate_2'])))
+    model.add(layers.Dense(
         int(params['dense_neurons_3']),
         kernel_initializer=params['kernel_initial_3'],
         activation=params['activation']
     ))
-    model.add(tf.keras.layers.Dense(
+    model.add(layers.Dense(
         1,
         activation='sigmoid'
     ))
@@ -171,7 +174,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
         loss='binary_crossentropy',
         metrics=['accuracy', f1_metric]
     )
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=50)
+    es = EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=50)
 
     # Step 4: Train the model on TPU with fixed batch size.
     out = model.fit(
