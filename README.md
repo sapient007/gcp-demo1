@@ -15,7 +15,7 @@ Package Manager - Anaconda3
 
 ### Setup Environment
 ```
-conda create -n gcp-demo1 -y python=3.7
+conda create -n gcp-demo1 -y python=3.7.4
 ```
 
 Activate the virtual environment
