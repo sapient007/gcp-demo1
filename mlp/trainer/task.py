@@ -58,7 +58,7 @@ if __name__ == '__main__':
         '--filename',
         type=str,
         help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/test/results-20191007-193432.csv')
+        default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
     parser.add_argument(
         '--dense-neurons-1',
         type=int,

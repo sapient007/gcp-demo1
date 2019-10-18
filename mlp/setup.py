@@ -1,9 +1,11 @@
 from setuptools import find_packages
 from setuptools import setup
 
+
 REQUIRED_PACKAGES = [
   'talos==0.6.3',
 ]
+
 
 setup(
     name='trainer',
