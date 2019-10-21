@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 
@@ -9,15 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from talos.model.normalizers import lr_normalizer
 
-
-def download_data_from_gcs(filename):
-    """
-    TODO - Implement - or rather move to task.py
-    :param filename:
-    :return:
-    """
-
-    return filename
+from google.cloud import storage
 
 
 def scale_data(data, col_index, scaler):
@@ -46,7 +39,7 @@ def process_data(filename):
     """
 
     # read in the data
-    df = pd.read_csv(tf.gfile.Open(filename))
+    df = pd.read_csv(tf.io.gfile.GFile(filename))
 
     # drop unusused columns
     df_ready = df.drop(
@@ -146,33 +139,33 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     K.clear_session()
 
     # Step 2: Define the model with variable hyperparameters.
-    model = tf.keras.models.Sequential()
-    model.add(tf.keras.layers.Dense(
+    mlp_model = tf.keras.models.Sequential()
+    mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
         input_dim=x_train.shape[1],
         kernel_initializer=params['kernel_initial_1']
     ))
-    model.add(tf.keras.layers.BatchNormalization(axis=1))
-    model.add(tf.keras.layers.Activation(activation=params['activation']))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
-    model.add(tf.keras.layers.Dense(
+    mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
+    mlp_model.add(tf.keras.layers.Activation(activation=params['activation']))
+    mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
+    mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_2']),
         kernel_initializer=params['kernel_initial_2'],
         activation=params['activation']
     ))
-    model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
-    model.add(tf.keras.layers.Dense(
+    mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
+    mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_3']),
         kernel_initializer=params['kernel_initial_3'],
         activation=params['activation']
     ))
-    model.add(tf.keras.layers.Dense(
+    mlp_model.add(tf.keras.layers.Dense(
         1,
         activation='sigmoid'
     ))
 
     # Step 3: =compile with tensorflow optimizer.
-    model.compile(
+    mlp_model.compile(
         optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
         loss='binary_crossentropy',
         metrics=['accuracy', f1_metric]
@@ -185,7 +178,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
-    history = model.fit(
+    history = mlp_model.fit(
         x_train,
         y_train,
         epochs=1000,
@@ -196,4 +189,51 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     )
 
     # Step 5: Return the history output and synced back cpu model.
-    return history, model
+    return history, mlp_model
+
+
+def upload_blob(bucket_name, source_file_name, destination_blob_name):
+    """
+    Uploads a file to the bucket
+    :param bucket_name:
+    :param source_file_name:
+    :param destination_blob_name:
+    :return:
+    """
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+
+
+def save_model(mlp_model, history, bucket, job_dir):
+    """
+    TODO: description
+    :param mlp_model:
+    :param history:
+    :param job_dir:
+    :return:
+    """
+
+    # export the model to a SavedModel
+    mlp_model.save('model.h5',
+                   overwrite=True)
+    upload_blob(
+        bucket,
+        source_file_name='model.h5',
+        destination_blob_name=os.path.join(job_dir, 'model.h5')
+    )
+    os.remove('model.h5')
+
+    # create history dataframe and write to csv
+    pd.DataFrame(history.history).to_csv(
+        'history.csv',
+        index=False
+    )
+    upload_blob(
+        bucket,
+        source_file_name='history.csv',
+        destination_blob_name=os.path.join(job_dir, 'history.csv')
+    )
+    os.remove('history.csv')

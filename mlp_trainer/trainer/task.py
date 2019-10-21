@@ -12,10 +12,7 @@ def train_and_evaluate(args):
     :return:
     """
 
-    # process data for training
-    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-
-    # choose optimizer from input argument
+    # choose optimizer from input arguments
     if args.optimizer.lower() == 'adam':
         optimizer = tf.keras.optimizers.Adam
     elif args.optimizer.lower() == 'nadam':
@@ -43,10 +40,25 @@ def train_and_evaluate(args):
         'kernel_initial_3': args.kernel_initial_3
     }
 
+    # process data for training
+    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
+
     # train model and get history
-    history, mlp_model = model.train_mlp(x_train, y_train, x_val, y_val, params)
-    print(history.history)
-    print(model)
+    history, mlp_model = model.train_mlp(
+        x_train,
+        y_train,
+        x_val,
+        y_val,
+        params
+    )
+
+    # save model and history to job directory
+    model.save_model(
+        mlp_model,
+        history,
+        args.bucket,
+        args.job_dir
+    )
 
 
 if __name__ == '__main__':
@@ -59,6 +71,16 @@ if __name__ == '__main__':
         type=str,
         help='GCS filename of data',
         default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
+    parser.add_argument(
+        '--bucket',
+        type=str,
+        help='GCS bucket to create job directory in',
+        default='gcp-cert-demo-1')
+    parser.add_argument(
+        '--job-dir',
+        type=str,
+        help='Directory to create in bucket to write history and export model',
+        default='test_job_dir')
     parser.add_argument(
         '--dense-neurons-1',
         type=int,
