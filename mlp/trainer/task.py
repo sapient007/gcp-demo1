@@ -12,10 +12,7 @@ def train_and_evaluate(args):
     :return:
     """
 
-    # process data for training
-    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-
-    # choose optimizer from input argument
+    # choose optimizer from input arguments
     if args.optimizer.lower() == 'adam':
         optimizer = tf.keras.optimizers.Adam
     elif args.optimizer.lower() == 'nadam':
@@ -43,6 +40,9 @@ def train_and_evaluate(args):
         'kernel_initial_3': args.kernel_initial_3
     }
 
+    # process data for training
+    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
+
     # train model and get history
     history, mlp_model = model.train_mlp(
         x_train,
@@ -54,7 +54,7 @@ def train_and_evaluate(args):
 
     # save model and history to job directory
     model.save_model(
-        model,
+        mlp_model,
         history,
         args.job_dir
     )

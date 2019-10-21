@@ -193,7 +193,7 @@ def save_model(model, history, job_dir):
 
     # export the model to a SavedModel
     model.save(
-        'model',
+        'model.h5',
         save_format='tf'
     )
 
