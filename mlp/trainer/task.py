@@ -52,6 +52,8 @@ def train_and_evaluate(args):
         params
     )
 
+    print(mlp_model.summary())
+
     # save model and history to job directory
     model.save_model(
         model,

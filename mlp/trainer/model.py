@@ -36,7 +36,7 @@ def process_data(filename):
     """
 
     # read in the data
-    df = pd.read_csv(tf.gfile.Open(filename))
+    df = pd.read_csv(tf.io.gfile.GFile(filename))
 
     # drop unusused columns
     df_ready = df.drop(
@@ -192,10 +192,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
 def save_model(model, history, job_dir):
 
     # export the model to a SavedModel
-    model.save(
-        'model',
-        save_format='tf'
-    )
+    model.save('model.h5')
 
     # create history dataframe and write to csv
     pd.DataFrame(history.history).to_csv(
