@@ -44,9 +44,20 @@ def train_and_evaluate(args):
     }
 
     # train model and get history
-    history, mlp_model = model.train_mlp(x_train, y_train, x_val, y_val, params)
-    print(history.history)
-    print(model)
+    history, mlp_model = model.train_mlp(
+        x_train,
+        y_train,
+        x_val,
+        y_val,
+        params
+    )
+
+    # save model and history to job directory
+    model.save_model(
+        model,
+        history,
+        args.job_dir
+    )
 
 
 if __name__ == '__main__':
@@ -59,6 +70,11 @@ if __name__ == '__main__':
         type=str,
         help='GCS filename of data',
         default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
+    parser.add_argument(
+        '--job-dir',
+        type=str,
+        help='GCS directory to write history and export model',
+        default='gs://gcp-cert-demo-1/test_job_dir')
     parser.add_argument(
         '--dense-neurons-1',
         type=int,

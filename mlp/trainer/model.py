@@ -10,16 +10,6 @@ from sklearn.preprocessing import MinMaxScaler
 from talos.model.normalizers import lr_normalizer
 
 
-def download_data_from_gcs(filename):
-    """
-    TODO - Implement - or rather move to task.py
-    :param filename:
-    :return:
-    """
-
-    return filename
-
-
 def scale_data(data, col_index, scaler):
     """
     TODO: description
@@ -197,3 +187,18 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
 
     # Step 5: Return the history output and synced back cpu model.
     return history, model
+
+
+def save_model(model, history, job_dir):
+
+    # export the model to a SavedModel
+    model.save(
+        'model',
+        save_format='tf'
+    )
+
+    # create history dataframe and write to csv
+    pd.DataFrame(history.history).to_csv(
+        'history.csv',
+        index=False
+    )
