@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 
@@ -8,6 +9,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 
 from talos.model.normalizers import lr_normalizer
+
+from google.cloud import storage
 
 
 def scale_data(data, col_index, scaler):
@@ -189,13 +192,48 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     return history, mlp_model
 
 
+def upload_blob(bucket_name, source_file_name, destination_blob_name):
+    """
+    Uploads a file to the bucket
+    :param bucket_name:
+    :param source_file_name:
+    :param destination_blob_name:
+    :return:
+    """
+
+    storage_client = storage.Client()
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+
+
 def save_model(mlp_model, history, job_dir):
+    """
+    TODO: description
+    :param mlp_model:
+    :param history:
+    :param job_dir:
+    :return:
+    """
 
     # export the model to a SavedModel
-    mlp_model.save('model.h5')
+    mlp_model.save('model.h5',
+                   overwrite=True)
+    upload_blob(
+        'gcp-cert-demo-1',
+        source_file_name='model.h5',
+        destination_blob_name=os.path.join(job_dir, 'model.h5')
+    )
+    os.remove('model.h5')
 
     # create history dataframe and write to csv
     pd.DataFrame(history.history).to_csv(
         'history.csv',
         index=False
     )
+    upload_blob(
+        'gcp-cert-demo-1',
+        source_file_name='history.csv',
+        destination_blob_name=os.path.join(job_dir, 'history.csv')
+    )
+    os.remove('history.csv')
