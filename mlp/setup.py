@@ -3,7 +3,7 @@ from setuptools import setup
 
 
 REQUIRED_PACKAGES = [
-  'talos==0.6.3',
+    'talos==0.6.3',
 ]
 
 
@@ -13,5 +13,5 @@ setup(
     install_requires=REQUIRED_PACKAGES,
     packages=find_packages(),
     include_package_data=True,
-    requires=[]
+    description='GCP Demo 1 Training Application'
 )
