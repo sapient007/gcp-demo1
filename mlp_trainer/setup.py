@@ -4,6 +4,7 @@ from setuptools import setup
 
 REQUIRED_PACKAGES = [
     'talos==0.6.3',
+    'tensorflow==2.0'
 ]
 
 
