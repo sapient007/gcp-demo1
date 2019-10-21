@@ -56,6 +56,7 @@ def train_and_evaluate(args):
     model.save_model(
         mlp_model,
         history,
+        args.bucket,
         args.job_dir
     )
 
@@ -71,10 +72,15 @@ if __name__ == '__main__':
         help='GCS filename of data',
         default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
     parser.add_argument(
+        '--bucket',
+        type=str,
+        help='GCS bucket to create job directory in',
+        default='gcp-cert-demo-1')
+    parser.add_argument(
         '--job-dir',
         type=str,
-        help='GCS directory to write history and export model',
-        default='gs://gcp-cert-demo-1/test_job_dir')
+        help='Directory to create in bucket to write history and export model',
+        default='test_job_dir')
     parser.add_argument(
         '--dense-neurons-1',
         type=int,

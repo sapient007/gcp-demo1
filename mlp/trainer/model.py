@@ -207,7 +207,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     blob.upload_from_filename(source_file_name)
 
 
-def save_model(mlp_model, history, job_dir):
+def save_model(mlp_model, history, bucket, job_dir):
     """
     TODO: description
     :param mlp_model:
@@ -220,7 +220,7 @@ def save_model(mlp_model, history, job_dir):
     mlp_model.save('model.h5',
                    overwrite=True)
     upload_blob(
-        'gcp-cert-demo-1',
+        bucket,
         source_file_name='model.h5',
         destination_blob_name=os.path.join(job_dir, 'model.h5')
     )
@@ -232,7 +232,7 @@ def save_model(mlp_model, history, job_dir):
         index=False
     )
     upload_blob(
-        'gcp-cert-demo-1',
+        bucket,
         source_file_name='history.csv',
         destination_blob_name=os.path.join(job_dir, 'history.csv')
     )
