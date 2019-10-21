@@ -2,7 +2,7 @@ import argparse
 
 import tensorflow as tf
 
-import trainer.model as model
+import model as model
 
 
 def train_and_evaluate(args):
