@@ -7,6 +7,8 @@ REQUIRED_PACKAGES = [
     'tensorflow==2.0',
     'numpy==1.17.2',
     'pandas==0.19.2',
+    'google-cloud-storage',
+    'urllib3'
 ]
 
 
