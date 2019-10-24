@@ -40,25 +40,30 @@ def train_and_evaluate(args):
         'kernel_initial_3': args.kernel_initial_3
     }
 
-    # process data for training
-    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-
-    # train model and get history
-    history, mlp_model = model.train_mlp(
-        x_train,
-        y_train,
-        x_val,
-        y_val,
-        params
+    model.generator_input(
+        args.filename,
+        chunksize=100
     )
 
-    # save model and history to job directory
-    model.save_model(
-        mlp_model,
-        history,
-        args.bucket,
-        args.job_dir
-    )
+    # # process data for training
+    # x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
+    #
+    # # train model and get history
+    # history, mlp_model = model.train_mlp(
+    #     x_train,
+    #     y_train,
+    #     x_val,
+    #     y_val,
+    #     params
+    # )
+    #
+    # # save model and history to job directory
+    # model.save_model(
+    #     mlp_model,
+    #     history,
+    #     args.bucket,
+    #     args.job_dir
+    # )
 
 
 if __name__ == '__main__':
