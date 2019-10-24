@@ -13,6 +13,15 @@ from talos.model.normalizers import lr_normalizer
 from google.cloud import storage
 
 
+CSV_COLUMNS = [
+    'cash', 'year' , 'start_time', 'trip_miles', 'company', 'ml_partition', 'pickup_latitude',
+    'pickup_longitude', 'pickup_lat_norm', 'pickup_long_norm', 'pickup_lat_std', 'pickup_long_std',
+    'day_of_week_MONDAY', 'day_of_week_TUESDAY', 'day_of_week_THURSDAY', 'day_of_week_SUNDAY',
+    'day_of_week_SATURDAY', 'day_of_week_FRIDAY', 'day_of_week_WEDNESDAY', 'month_JANUARY', 'month_SEPTEMBER',
+    'month_JULY', 'month_JUNE', 'month_MAY', 'month_MARCH', 'month_OCTOBER', 'month_FEBRUARY', 'month_NOVEMBER',
+    'month_AUGUST', 'month_DECEMBER', 'month_APRIL'
+]
+
 def scale_data(data, col_index, scaler):
     """
     TODO: description
@@ -31,15 +40,12 @@ def scale_data(data, col_index, scaler):
     return data, scaler
 
 
-def process_data(filename):
+def process_data(df, partition):
     """
     TODO: description
-    :param filename:
+    :param df:
     :return:
     """
-
-    # read in the data
-    df = pd.read_csv(tf.io.gfile.GFile(filename))
 
     # drop unusused columns
     df_ready = df.drop(
@@ -60,32 +66,25 @@ def process_data(filename):
     df_array, long_scaler = scale_data(df_array, 3, StandardScaler())
 
     # partition
-    test_array = df_array[df['ml_partition'] == 'test']
-    train_array = df_array[df['ml_partition'] == 'train']
-    val_array = df_array[df['ml_partition'] == 'validation']
+    df_array = df_array[df['ml_partition'] == partition]
 
     # shuffle
-    np.random.shuffle(test_array)
-    np.random.shuffle(train_array)
-    np.random.shuffle(val_array)
+    np.random.shuffle(df_array)
 
     # separate predictors and targets
-    x_train = train_array[:, 1:]
-    y_train = train_array[:, 0]
-    x_test = test_array[:, 1:]
-    y_test = test_array[:, 0]
-    x_val = val_array[:, 1:]
-    y_val = val_array[:, 0]
+    x = df_array[:, 1:]
+    y = df_array[:, 0]
 
-    return x_train, y_train, x_test, y_test, x_val, y_val
+    return x, y
 
 
-def generator_input(filename, chunk_size, batch_size=64):
+def generator_input(filename, chunk_size, batch_size, partition):
     """
     Produce features and labels needed by keras fit_generator
     :param filename:
     :param chunk_size:
     :param batch_size:
+    :param partition:
     :return:
     """
 
@@ -93,29 +92,26 @@ def generator_input(filename, chunk_size, batch_size=64):
     while True:
         input_reader = pd.read_csv(
             tf.io.gfile.GFile(filename),
+            names=CSV_COLUMNS,
             chunksize=chunk_size,
         )
 
-        print(input_reader)
-
         for input_data in input_reader:
 
-            print(input_data)
-            input()
+            # Retains schema for next chunk processing.
+            if feature_cols is None:
+                feature_cols = input_data.columns
 
-            # input_data = input_data.dropna()
-            # label = pd.get_dummies(input_data.pop(LABEL_COLUMN))
-            #
-            # input_data = to_numeric_features(input_data, feature_cols)
-            #
-            # # Retains schema for next chunk processing.
-            # if feature_cols is None:
-            #     feature_cols = input_data.columns
-            #
-            # idx_len = input_data.shape[0]
-            # for index in range(0, idx_len, batch_size):
-            #     yield (input_data.iloc[index:min(idx_len, index + batch_size)],
-            #        label.iloc[index:min(idx_len, index + batch_size)])
+            x, y = process_data(
+                input_data,
+                partition=partition
+            )
+
+            idx_len = input_data.shape[0]
+            for index in range(0, idx_len, batch_size):
+                print((x[index:min(idx_len, index + batch_size)].shape, y[index:min(idx_len, index + batch_size)].shape))
+                # yield (x[index:min(idx_len, index + batch_size)],
+                #    y[index:min(idx_len, index + batch_size)])
 
 
 def recall_metric(y_true, y_pred):
@@ -250,6 +246,7 @@ def save_model(mlp_model, history, bucket, job_dir):
     TODO: description
     :param mlp_model:
     :param history:
+    :param bucket:
     :param job_dir:
     :return:
     """

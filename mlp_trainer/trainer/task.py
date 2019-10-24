@@ -2,7 +2,7 @@ import argparse
 
 import tensorflow as tf
 
-import trainer.model as model
+import model as model
 
 
 def train_and_evaluate(args):
@@ -42,7 +42,9 @@ def train_and_evaluate(args):
 
     model.generator_input(
         args.filename,
-        chunksize=100
+        chunksize=1000,
+        batch_size=64,
+        partition='train'
     )
 
     # # process data for training
