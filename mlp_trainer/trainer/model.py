@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 
+import data
+
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -31,51 +33,30 @@ def scale_data(data, col_index, scaler):
     return data, scaler
 
 
-def process_data(filename):
+def process_data():
     """
     TODO: description
-    :param filename:
     :return:
     """
 
-    # read in the data
-    df = pd.read_csv(tf.io.gfile.GFile(filename))
+    # read in the data from Bigquery storage API
+    train_df = data.get_data("train")
+    test_df = data.get_data("test")
+    validate_df = data.get_data("validation")
 
-    # drop unusused columns
-    df_ready = df.drop(
-        ['start_time', 'trip_miles', 'company', 'pickup_lat_norm', 'pickup_long_norm',
-         'pickup_lat_std', 'pickup_long_std', 'ml_partition'],
-        axis=1
-    )
-
-    # convert to numpy
-    df_array = df_ready.values
-
-    # remove rows with NaN
-    df_array = df_array[~np.isnan(df_array).any(axis=1)]
-
-    # scale
-    df_array, year_scaler = scale_data(df_array, 1, MinMaxScaler())
-    df_array, lat_scaler = scale_data(df_array, 2, StandardScaler())
-    df_array, long_scaler = scale_data(df_array, 3, StandardScaler())
-
-    # partition
-    test_array = df_array[df['ml_partition'] == 'test']
-    train_array = df_array[df['ml_partition'] == 'train']
-    val_array = df_array[df['ml_partition'] == 'validation']
-
-    # shuffle
-    np.random.shuffle(test_array)
-    np.random.shuffle(train_array)
-    np.random.shuffle(val_array)
+    # convert to numpy arrays
+    train_array = train_df.values
+    test_array = test_df.values
+    validate_array = validate_df.values
 
     # separate predictors and targets
-    x_train = train_array[:, 1:]
+    # label will be first column but finding it's index to be safe
+    x_train = train_array[:, train_array.columns.get_loc("cash"):]
     y_train = train_array[:, 0]
-    x_test = test_array[:, 1:]
+    x_test = test_array[:, test_array.columns.get_loc("cash"):]
     y_test = test_array[:, 0]
-    x_val = val_array[:, 1:]
-    y_val = val_array[:, 0]
+    x_val = validate_array[:, validate_array.columns.get_loc("cash"):]
+    y_val = validate_array[:, 0]
 
     return x_train, y_train, x_test, y_test, x_val, y_val
 
