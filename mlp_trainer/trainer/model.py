@@ -54,9 +54,13 @@ def process_data(df, partition):
         axis=1
     )
 
+    # partition
+    print(df)
+    df_array = df_ready[df['ml_partition'] == partition]
+    print(df_array)
     # convert to numpy
-    df_array = df_ready.values
-
+    df_array = df_array.values
+    print(df_array)
     # remove rows with NaN
     df_array = df_array[~np.isnan(df_array).any(axis=1)]
 
@@ -65,15 +69,13 @@ def process_data(df, partition):
     df_array, lat_scaler = scale_data(df_array, 2, StandardScaler())
     df_array, long_scaler = scale_data(df_array, 3, StandardScaler())
 
-    # partition
-    df_array = df_array[df['ml_partition'] == partition]
-
     # shuffle
     np.random.shuffle(df_array)
 
     # separate predictors and targets
     x = df_array[:, 1:]
     y = df_array[:, 0]
+    print(x.shape, y.shape)
 
     return x, y
 
@@ -94,6 +96,7 @@ def generator_input(filename, chunk_size, batch_size, partition):
             tf.io.gfile.GFile(filename),
             names=CSV_COLUMNS,
             chunksize=chunk_size,
+            index_col=False
         )
 
         for input_data in input_reader:
@@ -110,9 +113,12 @@ def generator_input(filename, chunk_size, batch_size, partition):
                 partition=partition
             )
 
+            print(type(x), x.shape)
+            print(x)
+
             idx_len = input_data.shape[0]
             for index in range(0, idx_len, batch_size):
-                print((x[index:min(idx_len, index + batch_size)].shape, y[index:min(idx_len, index + batch_size)].shape))
+                print((x[index:min(idx_len, index + batch_size), :].shape, y[index:min(idx_len, index + batch_size), :].shape))
                 # yield (x[index:min(idx_len, index + batch_size)],
                 #    y[index:min(idx_len, index + batch_size)])
 
