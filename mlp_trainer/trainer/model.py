@@ -100,7 +100,7 @@ def generator_input(filename, chunk_size, batch_size=64):
 
         for input_data in input_reader:
 
-            print(input_data)
+            print(type(input_data), input_data.shape)
             input()
 
             # input_data = input_data.dropna()
