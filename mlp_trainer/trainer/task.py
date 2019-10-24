@@ -43,6 +43,9 @@ def train_and_evaluate(args):
     model.generator_input(
         args.filename,
         chunk_size=100
+        chunksize=1000,
+        batch_size=64,
+        partition='train'
     )
 
     # # process data for training
