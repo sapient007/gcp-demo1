@@ -80,6 +80,40 @@ def process_data(filename):
     return x_train, y_train, x_test, y_test, x_val, y_val
 
 
+def generator_input(filenames, chunk_size, batch_size=64):
+    """
+    Produce features and labels needed by keras fit_generator
+    :param filenames:
+    :param chunk_size:
+    :param batch_size:
+    :return:
+    """
+
+    feature_cols = None
+    while True:
+        input_reader = pd.read_csv(
+            tf.gfile.Open(filenames[0]),
+            names=CSV_COLUMNS,
+            chunksize=chunk_size,
+            na_values=' ?'
+        )
+
+        for input_data in input_reader:
+            input_data = input_data.dropna()
+            label = pd.get_dummies(input_data.pop(LABEL_COLUMN))
+
+            input_data = to_numeric_features(input_data, feature_cols)
+
+            # Retains schema for next chunk processing.
+            if feature_cols is None:
+                feature_cols = input_data.columns
+
+            idx_len = input_data.shape[0]
+            for index in range(0, idx_len, batch_size):
+                yield (input_data.iloc[index:min(idx_len, index + batch_size)],
+                   label.iloc[index:min(idx_len, index + batch_size)])
+
+
 def recall_metric(y_true, y_pred):
     """
     TODO: description
