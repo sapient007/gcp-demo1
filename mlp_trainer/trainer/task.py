@@ -77,7 +77,7 @@ if __name__ == '__main__':
         '--filename',
         type=str,
         help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/data/whole-single-full.csv')
+        default='gs://gcp-cert-demo-1/data/csv/test-single-full.csv')
     parser.add_argument(
         '--bucket',
         type=str,

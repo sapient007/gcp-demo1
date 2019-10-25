@@ -44,6 +44,7 @@ def process_data(df, partition):
     """
     TODO: description
     :param df:
+    :param partition:
     :return:
     """
 
@@ -55,12 +56,12 @@ def process_data(df, partition):
     )
 
     # partition
-    print(df)
+
     df_array = df_ready[df['ml_partition'] == partition]
-    print(df_array)
+
     # convert to numpy
     df_array = df_array.values
-    print(df_array)
+
     # remove rows with NaN
     df_array = df_array[~np.isnan(df_array).any(axis=1)]
 
@@ -75,7 +76,6 @@ def process_data(df, partition):
     # separate predictors and targets
     x = df_array[:, 1:]
     y = df_array[:, 0]
-    print(x.shape, y.shape)
 
     return x, y
 
@@ -98,6 +98,9 @@ def generator_input(filename, chunk_size, batch_size, partition):
             chunksize=chunk_size,
             index_col=False
         )
+
+        print(input_reader, input_reader.shape)
+        input()
 
         for input_data in input_reader:
 
