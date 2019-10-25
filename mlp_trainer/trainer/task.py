@@ -42,7 +42,7 @@ def train_and_evaluate(args):
 
     model.generator_input(
         args.filename,
-        chunk_size=1000,
+        chunk_size=1024,
         batch_size=64,
         partition='train'
     )
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         '--filename',
         type=str,
         help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/data/whole-single-full.csv')
+        default='gs://gcp-cert-demo-1/data/csv/test-single-full.csv')
     parser.add_argument(
         '--bucket',
         type=str,

@@ -44,6 +44,7 @@ def process_data(df, partition):
     """
     TODO: description
     :param df:
+    :param partition:
     :return:
     """
 
@@ -56,7 +57,7 @@ def process_data(df, partition):
 
     # partition
     df_array = df_ready[df['ml_partition'] == partition]
-    
+
     # convert to numpy
     df_array = df_array.values
 
@@ -96,13 +97,19 @@ def generator_input(filename, chunk_size, batch_size, partition):
             chunksize=chunk_size,
             index_col=False
         )
-        print(input_reader.shape)
+        
         print(len(CSV_COLUMNS))
+        print(input_reader)
+        input()
 
         for input_data in input_reader:
 
             print(type(input_data), input_data.shape)
-            input()
+            print(input_data)
+            for i, col in enumerate(input_data.columns):
+                print(col)
+                print(input_data[col])
+                input()
 
             # Retains schema for next chunk processing.
             if feature_cols is None:
