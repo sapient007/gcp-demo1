@@ -61,32 +61,32 @@ class TransformLatLongFn(
         val meanPickupLat = c.sideInput(meanPickupLatView)
         val meanPickupLong = c.sideInput(meanPickupLongView)
 
-        if (trip?.pickup_latitude != null && trip.pickup_longitude != null) {
-            val calc = GeodeticCalculator.create(crs)
-            calc.setStartGeographicPoint(mapCenterPoint.y, mapCenterPoint.x)
-            calc.setEndGeographicPoint(trip.pickup_latitude, trip.pickup_longitude)
-            row.distance_from_center = calc.geodesicDistance / 1000
-        }
+//        if (trip?.pickup_latitude != null && trip.pickup_longitude != null) {
+//            val calc = GeodeticCalculator.create(crs)
+//            calc.setStartGeographicPoint(mapCenterPoint.y, mapCenterPoint.x)
+//            calc.setEndGeographicPoint(trip.pickup_latitude, trip.pickup_longitude)
+//            row.distance_from_center = calc.geodesicDistance / 1000
+//        }
 
         if (trip?.pickup_latitude != null && row.pickup_lat_centered != null) {
             row.pickup_latitude = trip.pickup_latitude
             //Normalize lat between 0 and 1
             row.pickup_lat_norm =
-                (row.pickup_lat_centered as Double - minPickupLat) / (maxPickupLat - minPickupLat)
+                (row.pickup_latitude as Double - minPickupLat) / (maxPickupLat - minPickupLat)
 
             //Standardize lat
             row.pickup_lat_std =
-                (row.pickup_lat_centered as Double - meanPickupLat) / stdPickupLat
+                (row.pickup_latitude as Double - meanPickupLat) / stdPickupLat
         }
         if (trip?.pickup_longitude != null) {
             row.pickup_longitude = trip.pickup_longitude
             //Normalize long between 0 and 1
             row.pickup_long_norm =
-                (row.pickup_long_centered as Double - minPickupLong) / (maxPickupLong - minPickupLong)
+                (row.pickup_longitude as Double - minPickupLong) / (maxPickupLong - minPickupLong)
 
             //Standardize lat
             row.pickup_long_std =
-                (row.pickup_long_centered as Double - meanPickupLong) / stdPickupLong
+                (row.pickup_longitude as Double - meanPickupLong) / stdPickupLong
         }
 
         c.output(KV.of(trip, row))

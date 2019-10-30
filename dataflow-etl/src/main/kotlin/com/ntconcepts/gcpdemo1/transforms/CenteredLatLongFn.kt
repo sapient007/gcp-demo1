@@ -39,13 +39,15 @@ class CenteredLatLongFn(
         if (trip?.pickup_latitude != null) {
             //Calculate centered
             row.pickup_lat_centered = mapCenterPoint.y - trip.pickup_latitude
-            out.get(startLats).output(row.pickup_lat_centered)
+//            out.get(startLats).output(row.pickup_lat_centered)
+            out.get(startLats).output(trip.pickup_latitude)
         }
 
         if (trip?.pickup_longitude != null) {
 //Calculate centered
             row.pickup_long_centered = mapCenterPoint.x - trip.pickup_longitude
-            out.get(startLongs).output(row.pickup_long_centered)
+//            out.get(startLongs).output(row.pickup_long_centered)
+            out.get(startLongs).output(trip.pickup_longitude)
         }
 
         out.get(tripsWithCenteredCoords).output(KV.of(trip, row))
