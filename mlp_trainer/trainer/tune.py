@@ -1,3 +1,4 @@
+import logging
 import argparse
 import talos as ta
 import pandas as pd
@@ -15,19 +16,18 @@ def download_data_from_gcs(path):
 
 def tune(args):
     para = {
-        'dense_neurons_1': (64, 128, 9),
-        'dense_neurons_2': (32, 64, 5),
-        'dense_neurons_3': (8, 32, 7),
-        'activation': ['relu', 'elu'],
-        'dropout_rate_1': (0, 0.5, 5),
-        'dropout_rate_2': (0, 0.5, 5),
-        'dropout_rate_3': (0, 0.5, 5),
-        'optimizer': [tf.keras.optimizers.Adam, tf.keras.optimizers.Nadam, tf.keras.optimizers.RMSprop,
-                      tf.keras.optimizers.SGD],
-        'lr': [.0001, .0005, .001, .005, .01, .05, .1, .5, 1],
-        'kernel_initial_1': ['normal', 'glorot_normal', 'he_normal', 'lecun_normal'],
-        'kernel_initial_2': ['normal', 'glorot_normal', 'he_normal', 'lecun_normal'],
-        'kernel_initial_3': ['normal', 'glorot_normal', 'he_normal', 'lecun_normal']
+        'dense_neurons_1': [64, 9],
+        'dense_neurons_2': [32],
+        'dense_neurons_3': [8],
+        'activation': ['relu'],
+        'dropout_rate_1': [0.5],
+        'dropout_rate_2': [0.5],
+        'dropout_rate_3': [0.5],
+        'optimizer': [tf.keras.optimizers.Adam],
+        'lr': [.0001],
+        'kernel_initial_1': ['normal'],
+        'kernel_initial_2': ['normal'],
+        'kernel_initial_3': ['normal']
     }
 
     X_train, y_train, X_test, y_test, X_val, y_val = model.process_data(args.filename)
@@ -35,7 +35,13 @@ def tune(args):
     scan_results = ta.Scan(x=X_train, y=y_train, x_val=X_val, y_val=y_val, params=para, model=model.train_MLP,
                            experiment_name='test_1')
 
-    pass
+    logging.info('Scanning complete.')
+
+    # use Scan object as input
+    analyze_object = ta.Analyze(scan_results)
+
+    # access the dataframe with the results
+    analyze_object.data.to_csv('hp_tuning.csv')
 
 
 def get_args():
@@ -76,8 +82,8 @@ def get_args():
 
 
 if __name__ == '__main__':
-    # args = get_args()
+    args = get_args()
     # tf.logging.set_verbosity(args.verbosity)
-    # tune(args)
+    tune(args)
 
     pass
