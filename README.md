@@ -5,6 +5,12 @@ predicting whether a taxi trip in Chicago, USA will be a cash or
 credit card payment. It is believed this would benefit drivers because
 cash tips tend to be greater than ones left on credit cards.
 
+## Directory Structure
+- dataflow-etl -> Java project for data ETL on Dataflow
+- mlp_trainer -> AI Platform trainer package
+- notebooks -> demonstration of dataflow pipeline, training and deploying model
+- src -> Python source code module for interacting with GCP services
+
 ## Setup
 
 ### Requirements
