@@ -272,7 +272,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
         )
     writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 //    writeAvro(options, tripOutputs)
-    writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
+//    writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 
     return p
 }
