@@ -37,11 +37,12 @@ def tune(args):
 
     logging.info('Scanning complete.')
 
-    # use Scan object as input
+    # Use Scan object as input
     analyze_object = ta.Analyze(scan_results)
 
-    # access the dataframe with the results
-    analyze_object.data.to_csv('hp_tuning.csv')
+    # Access the DataFrame with the results
+    output_filename = 'hp_tuning.csv'
+    analyze_object.data.to_csv(tf.io.gfile.GFile(output_filename))
 
 
 def get_args():
@@ -83,7 +84,5 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    # tf.logging.set_verbosity(args.verbosity)
     tune(args)
 
-    pass

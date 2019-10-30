@@ -2,7 +2,6 @@ import googleapiclient.discovery
 import logging
 
 
-
 class Predictor:
     def __init__(self, project, model, version=None):
         """Send json data to a deployed model for prediction.
