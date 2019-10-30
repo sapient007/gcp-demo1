@@ -34,7 +34,7 @@ or in some shells
 ```
 conda deactivate
 ```
-
+### Python Package Installation
 TODO - Package Installation
 ### Building Source Code
 ```
@@ -42,16 +42,24 @@ python setup.py bdist_wheel sdist
 cd dist
 pip install -U <filename.whl>
 ```
+### Installing Google SDK
+Please use this link to install the [GCloud SDK](https://cloud.google.com/sdk/docs/quickstarts).  
+Authentication will be made with the provided service account. 
+```
+gcloud auth activate-service-account --key-file=/path/to/credentials.json
+```
 
-### Authenticating to GCP
+### Python Authentication to GCP
 Set GOOGLE_APPLICATION_CREDENTIALS environment variable to the path to the SA credentials provided.  
 
 Windows -
 ```
 set GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 ```
-
 Linux -
 ```
 export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 ```
+
+You may run the workflow from the provided Jupyter Notebook or feel free to use the source code
+methods as you see fit.
