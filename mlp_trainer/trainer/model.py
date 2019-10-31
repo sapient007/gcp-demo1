@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 
+import data
+
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
@@ -38,45 +40,6 @@ def scale_data(data, col_index, scaler):
         data[:, col_index] = scaled[:, 0]
 
     return data, scaler
-
-
-def process_data(df, partition):
-    """
-    TODO: description
-    :param df:
-    :param partition:
-    :return:
-    """
-
-    # drop unusused columns
-    df_ready = df.drop(
-        ['start_time', 'trip_miles', 'company', 'pickup_lat_norm', 'pickup_long_norm',
-         'pickup_lat_std', 'pickup_long_std', 'ml_partition'],
-        axis=1
-    )
-
-    # partition
-    df_array = df_ready[df['ml_partition'] == partition]
-
-    # convert to numpy
-    df_array = df_array.values
-
-    # remove rows with NaN
-    df_array = df_array[~np.isnan(df_array).any(axis=1)]
-
-    # scale
-    df_array, year_scaler = scale_data(df_array, 1, MinMaxScaler())
-    df_array, lat_scaler = scale_data(df_array, 2, StandardScaler())
-    df_array, long_scaler = scale_data(df_array, 3, StandardScaler())
-
-    # shuffle
-    np.random.shuffle(df_array)
-
-    # separate predictors and targets
-    x = df_array[:, 1:]
-    y = df_array[:, 0]
-
-    return x, y
 
 
 def generator_input(filename, chunk_size, batch_size, partition):
