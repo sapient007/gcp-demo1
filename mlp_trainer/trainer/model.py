@@ -15,6 +15,15 @@ from talos.model.normalizers import lr_normalizer
 from google.cloud import storage
 
 
+CSV_COLUMNS = [
+    'cash', 'year' , 'start_time', 'trip_miles', 'company', 'ml_partition', 'pickup_latitude',
+    'pickup_longitude', 'pickup_lat_norm', 'pickup_long_norm', 'pickup_lat_std', 'pickup_long_std',
+    'day_of_week_MONDAY', 'day_of_week_TUESDAY', 'day_of_week_THURSDAY', 'day_of_week_SUNDAY',
+    'day_of_week_SATURDAY', 'day_of_week_FRIDAY', 'day_of_week_WEDNESDAY', 'month_JANUARY', 'month_SEPTEMBER',
+    'month_JULY', 'month_JUNE', 'month_MAY', 'month_MARCH', 'month_OCTOBER', 'month_FEBRUARY', 'month_NOVEMBER',
+    'month_AUGUST', 'month_DECEMBER', 'month_APRIL'
+]
+
 def scale_data(data, col_index, scaler):
     """
     TODO: description
@@ -33,32 +42,55 @@ def scale_data(data, col_index, scaler):
     return data, scaler
 
 
-def process_data():
+def generator_input(filename, chunk_size, batch_size, partition):
     """
-    TODO: description
+    Produce features and labels needed by keras fit_generator
+    :param filename:
+    :param chunk_size:
+    :param batch_size:
+    :param partition:
     :return:
     """
 
-    # read in the data from Bigquery storage API
-    train_df = data.get_data("train")
-    test_df = data.get_data("test")
-    validate_df = data.get_data("validation")
+    feature_cols = None
+    while True:
+        input_reader = pd.read_csv(
+            tf.io.gfile.GFile(filename),
+            names=CSV_COLUMNS,
+            chunksize=chunk_size,
+            index_col=False
+        )
+        
+        print(len(CSV_COLUMNS))
+        print(input_reader)
+        input()
 
-    # convert to numpy arrays
-    train_array = train_df.values
-    test_array = test_df.values
-    validate_array = validate_df.values
+        for input_data in input_reader:
 
-    # separate predictors and targets
-    # label will be first column but finding it's index to be safe
-    x_train = train_array[:, train_array.columns.get_loc("cash"):]
-    y_train = train_array[:, 0]
-    x_test = test_array[:, test_array.columns.get_loc("cash"):]
-    y_test = test_array[:, 0]
-    x_val = validate_array[:, validate_array.columns.get_loc("cash"):]
-    y_val = validate_array[:, 0]
+            print(type(input_data), input_data.shape)
+            print(input_data)
+            for i, col in enumerate(input_data.columns):
+                print(col)
+                print(input_data[col])
+                input()
 
-    return x_train, y_train, x_test, y_test, x_val, y_val
+            # Retains schema for next chunk processing.
+            if feature_cols is None:
+                feature_cols = input_data.columns
+
+            x, y = process_data(
+                input_data,
+                partition=partition
+            )
+
+            print(type(x), x.shape)
+            print(x)
+
+            idx_len = input_data.shape[0]
+            for index in range(0, idx_len, batch_size):
+                print((x[index:min(idx_len, index + batch_size), :].shape, y[index:min(idx_len, index + batch_size), :].shape))
+                # yield (x[index:min(idx_len, index + batch_size)],
+                #    y[index:min(idx_len, index + batch_size)])
 
 
 def recall_metric(y_true, y_pred):
@@ -193,6 +225,7 @@ def save_model(mlp_model, history, bucket, job_dir):
     TODO: description
     :param mlp_model:
     :param history:
+    :param bucket:
     :param job_dir:
     :return:
     """

@@ -2,7 +2,7 @@ import argparse
 
 import tensorflow as tf
 
-import trainer.model as model
+import model as model
 
 
 def train_and_evaluate(args):
@@ -40,25 +40,32 @@ def train_and_evaluate(args):
         'kernel_initial_3': args.kernel_initial_3
     }
 
-    # process data for training
-    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-
-    # train model and get history
-    history, mlp_model = model.train_mlp(
-        x_train,
-        y_train,
-        x_val,
-        y_val,
-        params
+    model.generator_input(
+        args.filename,
+        chunk_size=1024,
+        batch_size=64,
+        partition='train'
     )
 
-    # save model and history to job directory
-    model.save_model(
-        mlp_model,
-        history,
-        args.bucket,
-        args.job_dir
-    )
+    # # process data for training
+    # x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
+    #
+    # # train model and get history
+    # history, mlp_model = model.train_mlp(
+    #     x_train,
+    #     y_train,
+    #     x_val,
+    #     y_val,
+    #     params
+    # )
+    #
+    # # save model and history to job directory
+    # model.save_model(
+    #     mlp_model,
+    #     history,
+    #     args.bucket,
+    #     args.job_dir
+    # )
 
 
 if __name__ == '__main__':
@@ -70,7 +77,7 @@ if __name__ == '__main__':
         '--filename',
         type=str,
         help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
+        default='gs://gcp-cert-demo-1/data/csv/test-single-full.csv')
     parser.add_argument(
         '--bucket',
         type=str,
