@@ -95,7 +95,7 @@ In addition to the [Cloud Dataflow Runner options](https://beam.apache.org/docum
 - `--mapCenterLong`: Longitude in radians to center row latitude values on. Example: -87.6319. Default: -87.6319 (Chicago City Hall)
 - `--sampleSize`: Percent of data to sample. Example: 0-100. Default: 100
 
-### Running job in an existing JDK 8 environment
+### Start a job in an existing JDK 8 environment
 
 If you already have a JDK 8 development environment setup, Dataflow jobs can be started by running (from inside `./dataflow-etl`):
 
@@ -103,7 +103,7 @@ If you already have a JDK 8 development environment setup, Dataflow jobs can be 
 gradle run -Pargs="--project=$PROJECT_ID --runner=DataflowRunner --region=$GCP_REGION --workerMachineType=$INSTANCE_TYPE --maxNumWorkers=$MAX_WORKERS --experiments=shuffle_mode=service"
 ```
 
-### Creating a container via Docker and running job in container (recommended)
+### Creating a container via Docker and start job in container (recommended)
 
 #### Step 1: Create the container
 
@@ -129,7 +129,7 @@ docker run --rm -v "~/.config/gcloud:/root/.config/gcloud"  -v './dataflow-etl\:
 docker run --rm -v "$LOCATION_OF_SA_JSON:/opt/sa/key.json"  -v './dataflow-etl\:/opt/etl' -e GOOGLE_APPLICATION_CREDENTIALS=/opt/sa/key.json -w /opt/etl openjdk:8 ./gradlew jib --image gcr.io/$PROJECT_ID/$REPO_NAME"
 ```
 
-#### Step 2: Run the job from the container
+#### Step 2: Start the job from the container
 
 ##### Using application default credentials
 
@@ -151,7 +151,7 @@ docker run --rm -v "~/.config/gcloud:/root/.config/gcloud" gcr.io/$PROJECT_ID/$R
 docker run --rm -v "$LOCATION_OF_SA_JSON:/opt/sa/key.json" -e GOOGLE_APPLICATION_CREDENTIALS=/opt/sa/key.json gcr.io/$PROJECT_ID/$REPO_NAME --project=$PROJECT_ID --runner=DataflowRunner --region=$GCP_REGION --workerMachineType=$INSTANCE_TYPE --maxNumWorkers=$MAX_WORKERS --experiments=shuffle_mode=service --jobName=$JOB_NAME
 ```
 
-### Running via Docker
+### Start a job via Docker
 
 #### Using application default credentials
 
