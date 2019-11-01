@@ -8,16 +8,19 @@ import org.apache.beam.sdk.options.ValueProvider
 interface Demo1Options : DataflowPipelineOptions {
 
     @get:Description("Bigquery output dataset")
+    @get:Default.String("chicagotaxi")
     val outputDataset: ValueProvider<String>
 
     fun setOutputDataset(dataset: ValueProvider<String>)
 
     @get:Description("Bigquery output table")
+    @get:Default.String("finaltaxi_encoded")
     val outputTable: ValueProvider<String>
 
     fun setOutputTable(table: ValueProvider<String>)
 
     @get:Description("Bigquery output tablespec. Example: project_id:dataset.table")
+    @get:Default.String("chicagotaxi.finaltaxi_encoded")
     val outputTableSpec: ValueProvider<String>
 
     fun setOutputTableSpec(outputTableSpec: ValueProvider<String>)

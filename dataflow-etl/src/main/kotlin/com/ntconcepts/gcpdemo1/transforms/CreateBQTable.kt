@@ -85,6 +85,12 @@ class CreateBQTable(
         )
         fields.add(
             Field.newBuilder(
+                "year_norm",
+                StandardSQLTypeName.FLOAT64
+            ).setMode(Field.Mode.REQUIRED).build()
+        )
+        fields.add(
+            Field.newBuilder(
                 "start_time",
                 StandardSQLTypeName.TIMESTAMP
             ).setMode(Field.Mode.REQUIRED).build()

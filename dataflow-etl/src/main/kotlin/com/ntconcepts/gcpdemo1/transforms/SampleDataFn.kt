@@ -21,7 +21,9 @@ class SampleDataFn(
 
     @ProcessElement
     fun apply(c: ProcessContext) {
-        if (Random.nextInt(0, 100) < sampleSize.get()) {
+        if (sampleSize.get() == 100) {
+            c.output(KV.of(c.element().key, c.element().value))
+        } else if (Random.nextInt(0, 100) < sampleSize.get()) {
             c.output(KV.of(c.element().key, c.element().value))
         }
     }

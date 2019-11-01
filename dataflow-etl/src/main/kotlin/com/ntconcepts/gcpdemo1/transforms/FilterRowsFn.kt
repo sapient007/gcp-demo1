@@ -9,9 +9,9 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class FilterRowsFn(
-    val companies: TupleTag<String>,
-    val trips: TupleTag<TaxiRideL1>,
-    val hotEncodeCompany: ValueProvider<Boolean>
+    private val companies: TupleTag<String>,
+    private val trips: TupleTag<TaxiRideL1>,
+    private val hotEncodeCompany: ValueProvider<Boolean>
 ) :
     DoFn<TaxiRideL1, TaxiRideL1>() {
 

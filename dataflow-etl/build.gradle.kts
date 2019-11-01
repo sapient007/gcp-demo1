@@ -4,6 +4,7 @@ plugins {
     java
     application
     kotlin("jvm") version "1.3.50"
+    id("com.google.cloud.tools.jib") version "1.7.0"
 }
 
 group = "com.ntconcepts"
@@ -16,7 +17,6 @@ val sisVersion: String by project
 val geoAPIVersion: String by project
 
 allprojects {
-    buildDir = File("C:/tmp/${rootProject.name}/${project.name}")
 }
 
 repositories {
