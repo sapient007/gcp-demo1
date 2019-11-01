@@ -7,7 +7,6 @@ import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollectionView
 import org.apache.sis.referencing.CommonCRS
-import org.apache.sis.referencing.GeodeticCalculator
 import org.opengis.referencing.crs.ProjectedCRS
 import java.awt.geom.Point2D
 
@@ -74,9 +73,13 @@ class TransformLatLongFn(
             row.pickup_lat_norm =
                 (row.pickup_latitude as Double - minPickupLat) / (maxPickupLat - minPickupLat)
 
+//            row.pickup_lat_norm = round((row.pickup_lat_norm!!*10000) / 10000)
+
             //Standardize lat
             row.pickup_lat_std =
                 (row.pickup_latitude as Double - meanPickupLat) / stdPickupLat
+
+//            row.pickup_lat_std = round((row.pickup_lat_std!!*10000) / 10000)
         }
         if (trip?.pickup_longitude != null) {
             row.pickup_longitude = trip.pickup_longitude
@@ -84,9 +87,13 @@ class TransformLatLongFn(
             row.pickup_long_norm =
                 (row.pickup_longitude as Double - minPickupLong) / (maxPickupLong - minPickupLong)
 
+//            row.pickup_long_norm = round((row.pickup_long_norm!!*10000) / 10000)
+
             //Standardize lat
             row.pickup_long_std =
                 (row.pickup_longitude as Double - meanPickupLong) / stdPickupLong
+
+//            row.pickup_long_std = round((row.pickup_long_std!!*10000) / 10000)
         }
 
         c.output(KV.of(trip, row))
