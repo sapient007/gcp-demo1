@@ -100,7 +100,7 @@ In addition to the [Cloud Dataflow Runner options](https://beam.apache.org/docum
 If you already have a JDK 8 development environment setup, Dataflow jobs can be started by running (from inside `./dataflow-etl`):
 
 ```bash
-gradle run -Pargs="--project=$PROJECT_ID --runner=DataflowRunner --region=$GCP_REGION --workerMachineType=$INSTANCE_TYPE --maxNumWorkers=$MAX_WORKERS --experiments=shuffle_mode=service"
+./gradlew run -Pargs="--project=$PROJECT_ID --runner=DataflowRunner --region=$GCP_REGION --workerMachineType=$INSTANCE_TYPE --maxNumWorkers=$MAX_WORKERS --experiments=shuffle_mode=service"
 ```
 
 ### Creating a container via Docker and start job in container (recommended)
