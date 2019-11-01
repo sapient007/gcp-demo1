@@ -39,7 +39,7 @@ def process_data(filename):
     """
 
     # read in the data
-    df = pd.read_csv(tf.io.gfile.GFile(filename))
+    df = pd.read_csv(filename)  # tf.io.gfile.GFile()
 
     # drop unusused columns
     df_ready = df.drop(

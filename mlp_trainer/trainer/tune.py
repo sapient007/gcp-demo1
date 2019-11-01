@@ -24,15 +24,19 @@ def tune(args):
         'dropout_rate_2': [0.5],
         'dropout_rate_3': [0.5],
         'optimizer': [tf.keras.optimizers.Adam],
-        'lr': [.0001],
+        'learning_rate': [.0001],
         'kernel_initial_1': ['normal'],
         'kernel_initial_2': ['normal'],
         'kernel_initial_3': ['normal']
     }
 
+    logging.info("Preprocessing Data")
+    print(args.filename)
     X_train, y_train, X_test, y_test, X_val, y_val = model.process_data(args.filename)
+
+    logging.info
     # Run the tuning
-    scan_results = ta.Scan(x=X_train, y=y_train, x_val=X_val, y_val=y_val, params=para, model=model.train_MLP,
+    scan_results = ta.Scan(x=X_train, y=y_train, x_val=X_val, y_val=y_val, params=para, model=model.train_mlp,
                            experiment_name='test_1')
 
     logging.info('Scanning complete.')
@@ -42,7 +46,7 @@ def tune(args):
 
     # Access the DataFrame with the results
     output_filename = 'hp_tuning.csv'
-    analyze_object.data.to_csv(tf.io.gfile.GFile(output_filename))
+    analyze_object.data.to_csv(output_filename)
 
 
 def get_args():
@@ -51,7 +55,6 @@ def get_args():
     parser.add_argument(
         'filename',
         type=str,
-        required=True,
         help='Dataset file local or GCS')
     # parser.add_argument(
     #     '--test-split',
