@@ -63,14 +63,17 @@ def get_session(client, table_ref, read_options, parent):
         # We use a LIQUID strategy in this example because we only read from a
         # single stream. Consider BALANCED if you're consuming multiple streams
         # concurrently and want more consistent stream sizes.
-        sharding_strategy=(bigquery_storage_v1beta1.enums.ShardingStrategy.LIQUID),
+        sharding_strategy=bigquery_storage_v1beta1.enums.ShardingStrategy.LIQUID,
     )
 
 
 def get_reader(client, session):
     """Creates the session reader to fetch data. Multiple readers can 
     be created to parallelize read in"""
-    return client.read_rows(bigquery_storage_v1beta1.types.StreamPosition(stream=session.streams[0]))
+    return client.read_rows(
+        bigquery_storage_v1beta1.types.StreamPosition(stream=session.streams[0]),
+        timeout=10000
+    )
 
 
 def get_df(reader, session):
@@ -93,3 +96,22 @@ def get_data(partition_name=None):
     reader = get_reader(client, session)
     df = get_df(reader, session)
     return df
+
+
+def get_reader_rows(partition_name=None):
+    """
+    TODO: description
+    :param partition_name:
+    :return:
+    """
+    client = bigquery_storage_v1beta1.BigQueryStorageClient()
+    session = get_session(
+        client,
+        get_table_ref(),
+        get_read_options(partition_name),
+        "projects/{}".format(get_table_ref().project_id)
+    )
+    reader = get_reader(client, session)
+    rows = reader.rows(session)
+
+    return rows

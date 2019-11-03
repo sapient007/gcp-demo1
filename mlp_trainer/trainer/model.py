@@ -1,96 +1,49 @@
 import os
-import numpy as np
 import pandas as pd
-
-import data
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
+# from talos.model.normalizers import lr_normalizer
 
-from talos.model.normalizers import lr_normalizer
-
-from google.cloud import storage
+import data
 
 
-CSV_COLUMNS = [
-    'cash', 'year' , 'start_time', 'trip_miles', 'company', 'ml_partition', 'pickup_latitude',
-    'pickup_longitude', 'pickup_lat_norm', 'pickup_long_norm', 'pickup_lat_std', 'pickup_long_std',
-    'day_of_week_MONDAY', 'day_of_week_TUESDAY', 'day_of_week_THURSDAY', 'day_of_week_SUNDAY',
-    'day_of_week_SATURDAY', 'day_of_week_FRIDAY', 'day_of_week_WEDNESDAY', 'month_JANUARY', 'month_SEPTEMBER',
-    'month_JULY', 'month_JUNE', 'month_MAY', 'month_MARCH', 'month_OCTOBER', 'month_FEBRUARY', 'month_NOVEMBER',
-    'month_AUGUST', 'month_DECEMBER', 'month_APRIL'
-]
-
-def scale_data(data, col_index, scaler):
-    """
-    TODO: description
-    :param data:
-    :param col_index:
-    :param scaler:
-    :return:
-    """
-
-    if scaler is not None:
-        col = data[:, col_index].reshape(data.shape[0], 1)
-        scaler.fit(col)
-        scaled = scaler.transform(col)
-        data[:, col_index] = scaled[:, 0]
-
-    return data, scaler
-
-
-def generator_input(filename, chunk_size, batch_size, partition):
+def generator_input(chunk_size, batch_size, partition):
     """
     Produce features and labels needed by keras fit_generator
-    :param filename:
     :param chunk_size:
     :param batch_size:
     :param partition:
     :return:
     """
 
-    feature_cols = None
-    while True:
-        input_reader = pd.read_csv(
-            tf.io.gfile.GFile(filename),
-            names=CSV_COLUMNS,
-            chunksize=chunk_size,
-            index_col=False
-        )
-        
-        print(len(CSV_COLUMNS))
-        print(input_reader)
-        input()
-
-        for input_data in input_reader:
-
-            print(type(input_data), input_data.shape)
-            print(input_data)
-            for i, col in enumerate(input_data.columns):
-                print(col)
-                print(input_data[col])
+    rows = data.get_reader_rows(partition)
+    df_rows = []
+    for idx, row in enumerate(rows):
+        if (idx % chunk_size == 0) and (idx != 0):
+            df = pd.DataFrame(df_rows)
+            df_rows = [row]
+            df_len = df.shape[0]
+            print(df)
+            input()
+            for jdx in range(0, df_len, batch_size):
+                print(df.iloc[jdx:min(df_len, jdx + batch_size), :])
                 input()
+        else:
+            df_rows.append(row)
 
-            # Retains schema for next chunk processing.
-            if feature_cols is None:
-                feature_cols = input_data.columns
+    return
 
-            x, y = process_data(
-                input_data,
-                partition=partition
-            )
+    idx = 0
 
-            print(type(x), x.shape)
-            print(x)
+    while True:
 
-            idx_len = input_data.shape[0]
-            for index in range(0, idx_len, batch_size):
-                print((x[index:min(idx_len, index + batch_size), :].shape, y[index:min(idx_len, index + batch_size), :].shape))
-                # yield (x[index:min(idx_len, index + batch_size)],
-                #    y[index:min(idx_len, index + batch_size)])
+        idx_len = input_data.shape[0]
+        for index in range(0, idx_len, batch_size):
+            print((x[index:min(idx_len, index + batch_size), :].shape, y[index:min(idx_len, index + batch_size), :].shape))
+            # yield (x[index:min(idx_len, index + batch_size)],
+            #    y[index:min(idx_len, index + batch_size)])
 
 
 def recall_metric(y_true, y_pred):

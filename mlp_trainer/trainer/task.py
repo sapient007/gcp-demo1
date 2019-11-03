@@ -1,3 +1,4 @@
+import os
 import argparse
 
 import tensorflow as tf
@@ -41,9 +42,8 @@ def train_and_evaluate(args):
     }
 
     model.generator_input(
-        args.filename,
-        chunk_size=1024,
-        batch_size=64,
+        chunk_size=100000,
+        batch_size=128,
         partition='train'
     )
 
@@ -72,12 +72,8 @@ if __name__ == '__main__':
 
     # TODO: update argument defaults with hp tuning results
 
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../../credentials/ml-sandbox-1-191918-4714b5fd6e92.json'
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--filename',
-        type=str,
-        help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/data/csv/test-single-full.csv')
     parser.add_argument(
         '--bucket',
         type=str,
