@@ -164,7 +164,7 @@ def train_mlp(table_id, params):
             partition='train'
         ) / params['batch_size']),
         epochs=1000,
-        verbose=0,
+        verbose=2,
         callbacks=[es],
         validation_data=generator_input(
             table_id,
