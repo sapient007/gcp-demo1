@@ -4,46 +4,9 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-# from talos.model.normalizers import lr_normalizer
+from talos.model.normalizers import lr_normalizer
 
 import data
-
-
-def generator_input(chunk_size, batch_size, partition):
-    """
-    Produce features and labels needed by keras fit_generator
-    :param chunk_size:
-    :param batch_size:
-    :param partition:
-    :return:
-    """
-
-    rows = data.get_reader_rows(partition)
-    df_rows = []
-    for idx, row in enumerate(rows):
-        if (idx % chunk_size == 0) and (idx != 0):
-            df = pd.DataFrame(df_rows)
-            df_rows = [row]
-            df_len = df.shape[0]
-            print(df)
-            input()
-            for jdx in range(0, df_len, batch_size):
-                print(df.iloc[jdx:min(df_len, jdx + batch_size), :])
-                input()
-        else:
-            df_rows.append(row)
-
-    return
-
-    idx = 0
-
-    while True:
-
-        idx_len = input_data.shape[0]
-        for index in range(0, idx_len, batch_size):
-            print((x[index:min(idx_len, index + batch_size), :].shape, y[index:min(idx_len, index + batch_size), :].shape))
-            # yield (x[index:min(idx_len, index + batch_size)],
-            #    y[index:min(idx_len, index + batch_size)])
 
 
 def recall_metric(y_true, y_pred):
@@ -90,13 +53,34 @@ def f1_metric(y_true, y_pred):
     return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 
 
-def train_mlp(x_train, y_train, x_val, y_val, params):
+def generator_input(chunk_size, batch_size, partition):
+    """
+    Produce features and labels needed by keras fit_generator
+    :param chunk_size:
+    :param batch_size:
+    :param partition:
+    :return:
+    """
+
+    rows = data.get_reader_rows(partition)
+    df_rows = []
+    for idx, row in enumerate(rows):
+        if (idx % chunk_size == 0) and (idx != 0):
+            df = pd.DataFrame(df_rows)
+            df_rows = [row]
+            df_len = df.shape[0]
+            for jdx in range(0, df_len, batch_size):
+                yield (
+                    df.iloc[jdx:min(df_len, jdx + batch_size), 1:].to_numpy(),
+                    df.iloc[jdx:min(df_len, jdx + batch_size), 0].to_numpy()
+                )
+        else:
+            df_rows.append(row)
+
+
+def train_mlp(params):
     """
     TODO: description
-    :param x_train:
-    :param y_train:
-    :param x_val:
-    :param y_val:
     :param params:
     :return:
     """
@@ -108,7 +92,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     mlp_model = tf.keras.models.Sequential()
     mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
-        input_dim=x_train.shape[1],
+        input_dim=25,
         kernel_initializer=params['kernel_initial_1']
     ))
     mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
@@ -144,13 +128,19 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
-    history = mlp_model.fit(
-        x_train,
-        y_train,
+    history = mlp_model.fit_generator(
+        generator_input(
+            chunk_size=50000,
+            batch_size=16,
+            partition='train'
+        ),
+        validation_data=generator_input(
+            chunk_size=50000,
+            batch_size=16,
+            partition='validation'
+        ),
         epochs=1000,
-        batch_size=16,
         verbose=0,
-        validation_data=(x_val, y_val),
         callbacks=[es]
     )
 

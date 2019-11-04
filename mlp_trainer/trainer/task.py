@@ -41,31 +41,16 @@ def train_and_evaluate(args):
         'kernel_initial_3': args.kernel_initial_3
     }
 
-    model.generator_input(
-        chunk_size=100000,
-        batch_size=128,
-        partition='train'
-    )
+    # train model and get history
+    history, mlp_model = model.train_mlp(params)
 
-    # # process data for training
-    # x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-    #
-    # # train model and get history
-    # history, mlp_model = model.train_mlp(
-    #     x_train,
-    #     y_train,
-    #     x_val,
-    #     y_val,
-    #     params
-    # )
-    #
-    # # save model and history to job directory
-    # model.save_model(
-    #     mlp_model,
-    #     history,
-    #     args.bucket,
-    #     args.job_dir
-    # )
+    # save model and history to job directory
+    model.save_model(
+        mlp_model,
+        history,
+        args.bucket,
+        args.job_dir
+    )
 
 
 if __name__ == '__main__':
