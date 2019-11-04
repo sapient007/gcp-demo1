@@ -114,7 +114,6 @@ def train_mlp(table_id, params):
     K.clear_session()
 
     # Step 2: Define the model with variable hyperparameters.
-    mlp_model = tf.keras.models.Sequential()
     mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
         input_dim=25,
@@ -153,6 +152,8 @@ def train_mlp(table_id, params):
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
+    print(tf.config.experimental.list_physical_devices('GPU'))
+    return
     history = mlp_model.fit_generator(
         generator_input(
             table_id,
