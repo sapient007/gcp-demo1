@@ -4,7 +4,7 @@ from setuptools import setup
 
 REQUIRED_PACKAGES = [
     'talos==0.6.3',
-    'tensorflow-gpu==2.0.0',
+    'tensorflow==2.0.0',
     'numpy==1.17.2',
     'pandas==0.19.2',
     'google-cloud-storage',
