@@ -146,7 +146,7 @@ def train_mlp(table_id, params):
         metrics=['accuracy', f1_metric]
     )
     es = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor='loss',
         mode='min',
         verbose=0,
         patience=50
