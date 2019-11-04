@@ -9,7 +9,7 @@ def get_table_ref():
     table_ref = bigquery_storage_v1beta1.types.TableReference()
     table_ref.project_id = "ml-sandbox-1-191918"
     table_ref.dataset_id = "chicagotaxi"
-    table_ref.table_id = "finaltaxi_encoded_full"
+    table_ref.table_id = "finaltaxi_encoded_sampled"
     return table_ref
 
 

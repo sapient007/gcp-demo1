@@ -6,7 +6,7 @@ import tensorflow.keras.backend as K
 
 from talos.model.normalizers import lr_normalizer
 
-import data
+import trainer.data
 
 
 def recall_metric(y_true, y_pred):
