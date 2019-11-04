@@ -8,6 +8,7 @@ REQUIRED_PACKAGES = [
     'numpy==1.17.2',
     'pandas==0.19.2',
     'google-cloud-storage',
+    'google-cloud-bigquery',
     'urllib3',
     'google-cloud-bigquery-storage[pandas,fastavro]==0.7.0'
 ]
