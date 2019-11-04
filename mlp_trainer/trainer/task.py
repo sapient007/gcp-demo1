@@ -67,7 +67,7 @@ if __name__ == '__main__':
         '--table_id',
         type=str,
         help='BigQuery table containing dataset',
-        default='finaltaxi_encoded_sampled')
+        default='finaltaxi_encoded_sampled_small')
     parser.add_argument(
         '--bucket',
         type=str,
