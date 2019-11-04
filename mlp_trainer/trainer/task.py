@@ -36,13 +36,18 @@ def train_and_evaluate(args):
         'dropout_rate_3': args.dropout_rate_3,
         'optimizer': optimizer,
         'learning_rate': args.learning_rate,
+        'batch_size': args.batch_size,
+        'validation_freq': args.validation_freq,
         'kernel_initial_1': args.kernel_initial_1,
         'kernel_initial_2': args.kernel_initial_2,
         'kernel_initial_3': args.kernel_initial_3
     }
 
     # train model and get history
-    history, mlp_model = model.train_mlp(params)
+    history, mlp_model = model.train_mlp(
+        args.table_id,
+        params
+    )
 
     # save model and history to job directory
     model.save_model(
@@ -59,6 +64,11 @@ if __name__ == '__main__':
 
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../../credentials/ml-sandbox-1-191918-4714b5fd6e92.json'
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--table_id',
+        type=str,
+        help='BigQuery table containing dataset',
+        default='finaltaxi_encoded_sampled')
     parser.add_argument(
         '--bucket',
         type=str,
@@ -114,6 +124,16 @@ if __name__ == '__main__':
         type=float,
         help='Learning rate, default=0.1',
         default=0.1)
+    parser.add_argument(
+        '--batch-size',
+        type=int,
+        help='Batch size, default=16',
+        default=16)
+    parser.add_argument(
+        '--validation_freq',
+        type=int,
+        help='Validation frequency, default=5',
+        default=5)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,

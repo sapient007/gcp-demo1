@@ -1,4 +1,5 @@
 import os
+import math
 import pandas as pd
 
 import tensorflow as tf
@@ -6,7 +7,10 @@ import tensorflow.keras.backend as K
 
 from talos.model.normalizers import lr_normalizer
 
-import trainer.data
+from google.cloud import bigquery
+from google.cloud import storage
+
+import trainer.data as data
 
 
 def recall_metric(y_true, y_pred):
@@ -53,16 +57,35 @@ def f1_metric(y_true, y_pred):
     return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 
 
-def generator_input(chunk_size, batch_size, partition):
+def get_sample_count(table_id, partition):
+    """
+
+    :param table_id:
+    :param partition:
+    :return:
+    """
+    client = bigquery.Client()
+    query_job = client.query(f'''
+        SELECT COUNT(*) FROM `ml-sandbox-1-191918.chicagotaxi.{table_id}` 
+        WHERE ml_partition='{partition}';
+        ''')
+
+    results = query_job.result()
+
+    return list(results)[0][0]
+
+
+def generator_input(table_id, chunk_size, batch_size, partition):
     """
     Produce features and labels needed by keras fit_generator
+    :param table_id:
     :param chunk_size:
     :param batch_size:
     :param partition:
     :return:
     """
 
-    rows = data.get_reader_rows(partition)
+    rows = data.get_reader_rows(table_id, partition)
     df_rows = []
     for idx, row in enumerate(rows):
         if (idx % chunk_size == 0) and (idx != 0):
@@ -78,9 +101,10 @@ def generator_input(chunk_size, batch_size, partition):
             df_rows.append(row)
 
 
-def train_mlp(params):
+def train_mlp(table_id, params):
     """
     TODO: description
+    :param table_id:
     :param params:
     :return:
     """
@@ -130,18 +154,29 @@ def train_mlp(params):
     # Step 4: Train the model on TPU with fixed batch size.
     history = mlp_model.fit_generator(
         generator_input(
+            table_id,
             chunk_size=50000,
             batch_size=16,
             partition='train'
         ),
+        steps_per_epoch=math.ceil(get_sample_count(
+            table_id,
+            partition='train'
+        ) / params['batch_size']),
+        epochs=1000,
+        verbose=0,
+        callbacks=[es],
         validation_data=generator_input(
+            table_id,
             chunk_size=50000,
             batch_size=16,
             partition='validation'
         ),
-        epochs=1000,
-        verbose=0,
-        callbacks=[es]
+        validation_steps=math.ceil(get_sample_count(
+            table_id,
+            partition='validation'
+        ) / params['batch_size']),
+        validation_freq=params['validation_freq']
     )
 
     # Step 5: Return the history output and synced back cpu model.

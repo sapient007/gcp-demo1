@@ -1,7 +1,7 @@
 from google.cloud import bigquery_storage_v1beta1
 
 
-def get_table_ref():
+def get_table_ref(table_id):
     """Sets up the table spec configuration
 
     @TODO: Should parameterize
@@ -9,7 +9,7 @@ def get_table_ref():
     table_ref = bigquery_storage_v1beta1.types.TableReference()
     table_ref.project_id = "ml-sandbox-1-191918"
     table_ref.dataset_id = "chicagotaxi"
-    table_ref.table_id = "finaltaxi_encoded_sampled"
+    table_ref.table_id = table_id
     return table_ref
 
 
@@ -82,7 +82,7 @@ def get_df(reader, session):
     return rows.to_dataframe()
 
 
-def get_data(partition_name=None):
+def get_data(table_id, partition_name=None):
     """Get prepared taxi ride data for training
 
     Args:
@@ -92,24 +92,25 @@ def get_data(partition_name=None):
         pandas.DataFrame: Pandas DataFrame
     """
     client = bigquery_storage_v1beta1.BigQueryStorageClient()
-    session = get_session(client, get_table_ref(), get_read_options(partition_name), "projects/{}".format(get_table_ref().project_id))
+    session = get_session(client, get_table_ref(table_id), get_read_options(partition_name), "projects/{}".format(get_table_ref(table_id).project_id))
     reader = get_reader(client, session)
     df = get_df(reader, session)
     return df
 
 
-def get_reader_rows(partition_name=None):
+def get_reader_rows(table_id, partition_name=None):
     """
     TODO: description
+    :param table_id:
     :param partition_name:
     :return:
     """
     client = bigquery_storage_v1beta1.BigQueryStorageClient()
     session = get_session(
         client,
-        get_table_ref(),
+        get_table_ref(table_id),
         get_read_options(partition_name),
-        "projects/{}".format(get_table_ref().project_id)
+        "projects/{}".format(get_table_ref(table_id).project_id)
     )
     reader = get_reader(client, session)
     rows = reader.rows(session)
