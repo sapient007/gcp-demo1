@@ -153,6 +153,7 @@ def train_mlp(table_id, params):
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
+    sess = tf.Session()
     history = mlp_model.fit_generator(
         generator_input(
             table_id,
