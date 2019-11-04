@@ -85,20 +85,21 @@ def generator_input(table_id, chunk_size, batch_size, partition):
     :return:
     """
 
-    rows = data.get_reader_rows(table_id, partition)
-    df_rows = []
-    for idx, row in enumerate(rows):
-        if (idx % chunk_size == 0) and (idx != 0):
-            df = pd.DataFrame(df_rows)
-            df_rows = [row]
-            df_len = df.shape[0]
-            for jdx in range(0, df_len, batch_size):
-                yield (
-                    df.iloc[jdx:min(df_len, jdx + batch_size), 1:].values,
-                    df.iloc[jdx:min(df_len, jdx + batch_size), 0].values
-                )
-        else:
-            df_rows.append(row)
+    while True:
+        rows = data.get_reader_rows(table_id, partition)
+        df_rows = []
+        for idx, row in enumerate(rows):
+            if (idx % chunk_size == 0) and (idx != 0):
+                df = pd.DataFrame(df_rows)
+                df_rows = [row]
+                df_len = df.shape[0]
+                for jdx in range(0, df_len, batch_size):
+                    yield (
+                        df.iloc[jdx:min(df_len, jdx + batch_size), 1:].values,
+                        df.iloc[jdx:min(df_len, jdx + batch_size), 0].values
+                    )
+            else:
+                df_rows.append(row)
 
 
 def train_mlp(table_id, params):
