@@ -65,10 +65,10 @@ def get_sample_count(table_id, partition):
     :return:
     """
     client = bigquery.Client()
-    query_job = client.query(f'''
-        SELECT COUNT(*) FROM `ml-sandbox-1-191918.chicagotaxi.{table_id}` 
-        WHERE ml_partition='{partition}';
-        ''')
+    query_job = client.query('''
+        SELECT COUNT(*) FROM `ml-sandbox-1-191918.chicagotaxi.{}` 
+        WHERE ml_partition='{}';
+        '''.format(table_id, partition))
 
     results = query_job.result()
 

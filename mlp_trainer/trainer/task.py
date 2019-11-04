@@ -62,7 +62,6 @@ if __name__ == '__main__':
 
     # TODO: update argument defaults with hp tuning results
 
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '../../credentials/ml-sandbox-1-191918-4714b5fd6e92.json'
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--table_id',
