@@ -138,8 +138,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--epochs',
         type=int,
-        help='Number of epochs to train, default=1',
-        default=1)
+        help='Number of epochs to train, default=3',
+        default=3)
     parser.add_argument(
         '--validation_freq',
         type=int,
