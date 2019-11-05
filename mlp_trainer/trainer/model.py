@@ -11,6 +11,8 @@ from google.cloud import bigquery
 from google.cloud import storage
 
 import trainer.data as data
+import logging
+from tensorflow.python.client import device_lib
 
 
 def recall_metric(y_true, y_pred):
@@ -109,6 +111,17 @@ def train_mlp(table_id, params):
     :param params:
     :return:
     """
+
+    # TODO: temp gpu testing
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
+        handlers=[
+            logging.FileHandler('gpu_testing.log'),
+            logging.StreamHandler()
+        ])
+    logging.info(device_lib.list_local_devices())
+    print(device_lib.list_local_devices())
 
     # Step 1: reset the tensorflow backend session.
     K.clear_session()
