@@ -8,7 +8,8 @@ import java.io.Serializable
 data class TaxiTripOutput(
     var unique_key: String?,
     var cash: Int?,
-    var year: Int?,
+    var year: Int,
+    var year_norm: Double,
     var start_time: String?,
     var start_time_epoch: Long?,
     var start_time_norm_midnight: Double?,
@@ -34,6 +35,7 @@ data class TaxiTripOutput(
         "",
         0,
         0,
+        0.0,
         "",
         0L,
         0.0,
@@ -61,6 +63,7 @@ data class TaxiTripOutput(
 
         printer.print(::cash.name)
         printer.print(::year.name)
+        printer.print(::year_norm.name)
         printer.print(::start_time_epoch.name)
         printer.print(::start_time_norm_midnight.name)
         printer.print(::start_time_norm_noon.name)
@@ -94,6 +97,7 @@ data class TaxiTripOutput(
 
         printer.print(cash)
         printer.print(year)
+        printer.print(year_norm)
         printer.print(start_time_epoch)
         printer.print(start_time_norm_midnight)
         printer.print(start_time_norm_noon)
@@ -142,6 +146,7 @@ data class TaxiTripOutput(
         val fields = ArrayList<Schema.Field>()
         fields.add(Schema.Field("cash", Schema.create(Schema.Type.INT), "cash", 0))
         fields.add(Schema.Field("year", Schema.create(Schema.Type.INT), "year", 0))
+        fields.add(Schema.Field("year_norm", Schema.create(Schema.Type.FLOAT), "year_norm", 0))
         fields.add(Schema.Field("start_time_epoch", Schema.create(Schema.Type.LONG), "start_time_epoch", 0L))
         fields.add(
             Schema.Field(

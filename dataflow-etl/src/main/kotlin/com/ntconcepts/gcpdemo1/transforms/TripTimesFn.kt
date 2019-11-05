@@ -5,6 +5,7 @@ import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import org.apache.beam.sdk.transforms.DoFn
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollectionView
+import org.apache.beam.sdk.values.TupleTag
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneOffset
@@ -15,8 +16,9 @@ enum class scaleTimes {
 }
 
 class TripTimesFn(
-    val daysOFWeekView: PCollectionView<List<String>>,
-    val monthsView: PCollectionView<List<String>>
+    private val daysOFWeekView: PCollectionView<List<String>>,
+    private val monthsView: PCollectionView<List<String>>,
+    private val years: TupleTag<Int>
 ) :
     DoFn<KV<TaxiRideL1, TaxiTripOutput>, KV<TaxiRideL1, TaxiTripOutput>>() {
 
@@ -61,6 +63,7 @@ class TripTimesFn(
         }
         row.year = startTrip.year
 
+        c.output(years, row.year)
         c.output(KV.of(trip, row))
     }
 
@@ -89,6 +92,7 @@ class TripTimesFn(
                 ((seconds - min12_h12) / (max12_h12 - min12_h12)) * -1
             }
         } else {
+            // Scale to midnight
             (seconds - 0) / (max24 - 0)
         }
 

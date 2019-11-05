@@ -96,10 +96,6 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val dayOfWeekView = getDaysOfWeekView(p)
     val monthView = getMonthView(p)
 
-//    val tableReadOptions = ReadOptions.TableReadOptions.newBuilder()
-//        .setRowRestriction("pickup_latitude is not null")
-//        .build()
-
     val results: PCollectionTuple =
         p.apply(
             "Get Chicago taxi rides",
@@ -207,7 +203,26 @@ fun getPipeline(options: Demo1Options): Pipeline {
     val meanPickupLong: PCollectionView<Double> =
         startLongsPCollection.apply("meanPickupLong", Mean.globally<Double>().asSingletonView())
 
-    val tripOutputs = tripsWithCenteredCoordsPCollection.apply(
+
+    val years = TupleTag<Int>()
+    val tripsWithTimesTT = TupleTag<KV<TaxiRideL1, TaxiTripOutput>>()
+
+    val tripsWithTimeResults = tripsWithCenteredCoordsPCollection
+        .apply(
+            "Create trip time fields",
+            ParDo.of(TripTimesFn(dayOfWeekView, monthView, years))
+                .withSideInputs(dayOfWeekView, monthView)
+                .withOutputTags(tripsWithTimesTT, TupleTagList.of(years))
+        )
+
+
+    val yearsPCollection: PCollection<Int> = tripsWithTimeResults.get(years).setCoder(VarIntCoder.of())
+    val maxYearView: PCollectionView<Int> =
+        yearsPCollection.apply("maxYear", Combine.globally(Max.ofIntegers()).asSingletonView())
+    val minYearView: PCollectionView<Int> =
+        yearsPCollection.apply("minYear", Combine.globally(Min.ofIntegers()).asSingletonView())
+
+    val tripOutputs = tripsWithTimeResults.get(tripsWithTimesTT).apply(
         "Map cash payments",
         MapElements.into(
             kvDescriptor
@@ -228,11 +243,6 @@ fun getPipeline(options: Demo1Options): Pipeline {
                     options.mlPartitionValidationWeight
                 )
             )
-        )
-        .apply(
-            "Create trip time fields",
-            ParDo.of(TripTimesFn(dayOfWeekView, monthView))
-                .withSideInputs(dayOfWeekView, monthView)
         )
         .apply(
             "Encode company",
@@ -264,6 +274,12 @@ fun getPipeline(options: Demo1Options): Pipeline {
                 stdPickupLong,
                 meanPickupLat,
                 meanPickupLong
+            )
+        )
+        .apply(
+            "NormalizeYear",
+            ParDo.of(ScaleYearFn()).withSideInputs(
+                mapOf(Pair("maxYear", maxYearView), Pair("minYear", minYearView))
             )
         )
         .apply(
