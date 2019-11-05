@@ -157,8 +157,8 @@ def train_mlp(table_id, params):
     history = mlp_model.fit_generator(
         generator_input(
             table_id,
-            chunk_size=50000,
-            batch_size=16,
+            chunk_size=200000,
+            batch_size=params['batch_size'],
             partition='train'
         ),
         steps_per_epoch=math.ceil(get_sample_count(
@@ -170,8 +170,8 @@ def train_mlp(table_id, params):
         callbacks=[es],
         validation_data=generator_input(
             table_id,
-            chunk_size=50000,
-            batch_size=16,
+            chunk_size=200000,
+            batch_size=params['batch_size'],
             partition='validation'
         ),
         validation_steps=math.ceil(get_sample_count(
