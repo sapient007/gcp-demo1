@@ -153,7 +153,6 @@ def train_mlp(table_id, params):
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
-    print(tf.config.experimental.list_physical_devices('GPU'))
     history = mlp_model.fit_generator(
         generator_input(
             table_id,
