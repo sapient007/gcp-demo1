@@ -1,3 +1,4 @@
+import os
 import argparse
 
 import tensorflow as tf
@@ -35,20 +36,18 @@ def train_and_evaluate(args):
         'dropout_rate_3': args.dropout_rate_3,
         'optimizer': optimizer,
         'learning_rate': args.learning_rate,
+        'chunk_size': args.chunk_size,
+        'batch_size': args.batch_size,
+        'epochs': args.epochs,
+        'validation_freq': args.validation_freq,
         'kernel_initial_1': args.kernel_initial_1,
         'kernel_initial_2': args.kernel_initial_2,
         'kernel_initial_3': args.kernel_initial_3
     }
 
-    # process data for training
-    x_train, y_train, x_test, y_test, x_val, y_val = model.process_data(args.filename)
-
     # train model and get history
     history, mlp_model = model.train_mlp(
-        x_train,
-        y_train,
-        x_val,
-        y_val,
+        args.table_id,
         params
     )
 
@@ -67,10 +66,10 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--filename',
+        '--table_id',
         type=str,
-        help='GCS filename of data',
-        default='gs://gcp-cert-demo-1/test/test_results-20191007-193432.csv')
+        help='BigQuery table containing dataset',
+        default='finaltaxi_encoded_sampled_small')
     parser.add_argument(
         '--bucket',
         type=str,
@@ -126,6 +125,26 @@ if __name__ == '__main__':
         type=float,
         help='Learning rate, default=0.1',
         default=0.1)
+    parser.add_argument(
+        '--batch-size',
+        type=int,
+        help='Batch size, default=64',
+        default=64)
+    parser.add_argument(
+        '--chunk-size',
+        type=int,
+        help='Chunk size to load training data, default=200000',
+        default=200000)
+    parser.add_argument(
+        '--chunk-size',
+        type=int,
+        help='Number of epochs to train, default=1',
+        default=1)
+    parser.add_argument(
+        '--validation_freq',
+        type=int,
+        help='Validation frequency, default=5',
+        default=5)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,

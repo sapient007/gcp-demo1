@@ -1,83 +1,16 @@
 import os
-import numpy as np
+import math
 import pandas as pd
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-
 from talos.model.normalizers import lr_normalizer
 
+from google.cloud import bigquery
 from google.cloud import storage
 
-
-def scale_data(data, col_index, scaler):
-    """
-    TODO: description
-    :param data:
-    :param col_index:
-    :param scaler:
-    :return:
-    """
-
-    if scaler is not None:
-        col = data[:, col_index].reshape(data.shape[0], 1)
-        scaler.fit(col)
-        scaled = scaler.transform(col)
-        data[:, col_index] = scaled[:, 0]
-
-    return data, scaler
-
-
-def process_data(filename):
-    """
-    TODO: description
-    :param filename:
-    :return:
-    """
-
-    # read in the data
-    df = pd.read_csv(filename)  # tf.io.gfile.GFile()
-
-    # drop unusused columns
-    df_ready = df.drop(
-        ['start_time', 'trip_miles', 'company', 'pickup_lat_norm', 'pickup_long_norm',
-         'pickup_lat_std', 'pickup_long_std', 'ml_partition'],
-        axis=1
-    )
-
-    # convert to numpy
-    df_array = df_ready.values
-
-    # remove rows with NaN
-    df_array = df_array[~np.isnan(df_array).any(axis=1)]
-
-    # scale
-    df_array, year_scaler = scale_data(df_array, 1, MinMaxScaler())
-    df_array, lat_scaler = scale_data(df_array, 2, StandardScaler())
-    df_array, long_scaler = scale_data(df_array, 3, StandardScaler())
-
-    # partition
-    test_array = df_array[df['ml_partition'] == 'test']
-    train_array = df_array[df['ml_partition'] == 'train']
-    val_array = df_array[df['ml_partition'] == 'validation']
-
-    # shuffle
-    np.random.shuffle(test_array)
-    np.random.shuffle(train_array)
-    np.random.shuffle(val_array)
-
-    # separate predictors and targets
-    x_train = train_array[:, 1:]
-    y_train = train_array[:, 0]
-    x_test = test_array[:, 1:]
-    y_test = test_array[:, 0]
-    x_val = val_array[:, 1:]
-    y_val = val_array[:, 0]
-
-    return x_train, y_train, x_test, y_test, x_val, y_val
+import trainer.data as data
 
 
 def recall_metric(y_true, y_pred):
@@ -124,13 +57,55 @@ def f1_metric(y_true, y_pred):
     return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
 
 
-def train_mlp(x_train, y_train, x_val, y_val, params):
+def get_sample_count(table_id, partition):
+    """
+
+    :param table_id:
+    :param partition:
+    :return:
+    """
+    client = bigquery.Client()
+    query_job = client.query('''
+        SELECT COUNT(*) FROM `ml-sandbox-1-191918.chicagotaxi.{}` 
+        WHERE ml_partition='{}';
+        '''.format(table_id, partition))
+
+    results = query_job.result()
+
+    return list(results)[0][0]
+
+
+def generator_input(table_id, chunk_size, batch_size, partition):
+    """
+    Produce features and labels needed by keras fit_generator
+    :param table_id:
+    :param chunk_size:
+    :param batch_size:
+    :param partition:
+    :return:
+    """
+
+    while True:
+        rows = data.get_reader_rows(table_id, partition)
+        df_rows = []
+        for idx, row in enumerate(rows):
+            if (idx % chunk_size == 0) and (idx != 0):
+                df = pd.DataFrame(df_rows)
+                df_rows = [row]
+                df_len = df.shape[0]
+                for jdx in range(0, df_len, batch_size):
+                    yield (
+                        df.iloc[jdx:min(df_len, jdx + batch_size), 1:].values,
+                        df.iloc[jdx:min(df_len, jdx + batch_size), 0].values
+                    )
+            else:
+                df_rows.append(row)
+
+
+def train_mlp(table_id, params):
     """
     TODO: description
-    :param x_train:
-    :param y_train:
-    :param x_val:
-    :param y_val:
+    :param table_id:
     :param params:
     :return:
     """
@@ -142,7 +117,7 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
     mlp_model = tf.keras.models.Sequential()
     mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
-        input_dim=x_train.shape[1],
+        input_dim=25,
         kernel_initializer=params['kernel_initial_1']
     ))
     mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
@@ -171,21 +146,38 @@ def train_mlp(x_train, y_train, x_val, y_val, params):
         metrics=['accuracy', f1_metric]
     )
     es = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor='loss',
         mode='min',
         verbose=0,
         patience=50
     )
 
     # Step 4: Train the model on TPU with fixed batch size.
-    history = mlp_model.fit(
-        x_train,
-        y_train,
-        epochs=1000,
-        batch_size=16,
-        verbose=0,
-        validation_data=(x_val, y_val),
-        callbacks=[es]
+    history = mlp_model.fit_generator(
+        generator_input(
+            table_id,
+            chunk_size=params['chunk_size'],
+            batch_size=params['batch_size'],
+            partition='train'
+        ),
+        steps_per_epoch=math.ceil(get_sample_count(
+            table_id,
+            partition='train'
+        ) / params['batch_size']),
+        epochs=params['epochs'],
+        verbose=2,
+        callbacks=[es],
+        validation_data=generator_input(
+            table_id,
+            chunk_size=params['chunk_size'],
+            batch_size=params['batch_size'],
+            partition='validation'
+        ),
+        validation_steps=math.ceil(get_sample_count(
+            table_id,
+            partition='validation'
+        ) / params['batch_size']),
+        validation_freq=params['validation_freq']
     )
 
     # Step 5: Return the history output and synced back cpu model.
@@ -203,7 +195,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
+    blob = bucket.blob(destination_blob_name.split(bucket_name + '/')[-1])
     blob.upload_from_filename(source_file_name)
 
 
@@ -212,6 +204,7 @@ def save_model(mlp_model, history, bucket, job_dir):
     TODO: description
     :param mlp_model:
     :param history:
+    :param bucket:
     :param job_dir:
     :return:
     """
