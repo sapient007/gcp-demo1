@@ -81,6 +81,15 @@ if __name__ == '__main__':
     else:
         params = json.loads(args.parameters)
 
+        optimizers = []
+        if 'Adam' in params['optimizer']:
+            optimizers.append(tf.keras.optimizers.Adam)
+
+        if len(optimizers) == 0:
+            optimizers = [tf.keras.optimizers.Adam]
+
+        params['optimizer'] = optimizers
+
     # TODO - check both GCS location is valid
     # logging.info(args.dataset_name[5:])
     # if tf.io.gfile.exists(args.dataset_name[5:]):

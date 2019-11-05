@@ -40,23 +40,29 @@ class HPTuner:
         :return:
         """
 
-        # create job and model id
-        self.unique_id = time.time()
-        self.job_id = "{}_{}".format(self.job_id_prefix, self.unique_id)
-        self.job_dir = "{}_{}".format(self.job_dir_prefix, self.unique_id)
-
-        # start job via gcloud
-        os.system('gcloud config set project {}'.format(self.project_name))
-        os.system(f'gcloud ai-platform jobs submit training {self.job_id} \
-        --region us-central1 \
-        --master-image-uri=gcr.io/cloud-ml-algos/linear_learner_cpu:latest \
-        --scale-tier=CUSTOM \
-        --master-machine-type={self.master_type} \
-        --job-dir={self.job_dir} \
-        -- \
-        --dataset_name={self.training_data_path} \
+        # Run a local test
+        os.system(f'python tune.py --dataset_name={self.training_data_path} \
         --output_path={output_path} \
         --parameters={json.dumps(parameters)}')
+
+
+        # create job and model id
+        # self.unique_id = time.time()
+        # self.job_id = "{}_{}".format(self.job_id_prefix, self.unique_id)
+        # self.job_dir = "{}_{}".format(self.job_dir_prefix, self.unique_id)
+
+        # start job via gcloud
+        # os.system('gcloud config set project {}'.format(self.project_name))
+        # os.system(f'gcloud ai-platform jobs submit training {self.job_id} \
+        # --region us-central1 \
+        # --master-image-uri=gcr.io/cloud-ml-algos/linear_learner_cpu:latest \
+        # --scale-tier=CUSTOM \
+        # --master-machine-type={self.master_type} \
+        # --job-dir={self.job_dir} \
+        # -- \
+        # --dataset_name={self.training_data_path} \
+        # --output_path={output_path} \
+        # --parameters={json.dumps(parameters)}')
 
         # start job via python client library
         # project_id = 'projects/{}'.format(self.project_name)
@@ -92,7 +98,7 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
-    output_path = 'gs://gcp-cert-demo-1/hp_tune_tets/hp_tuning.csv'
+    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning.csv'
 
     parameters = {
         'dense_neurons_1': [64, 9],
