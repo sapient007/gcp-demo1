@@ -38,6 +38,7 @@ def train_and_evaluate(args):
         'learning_rate': args.learning_rate,
         'chunk_size': args.chunk_size,
         'batch_size': args.batch_size,
+        'epochs': args.epochs,
         'validation_freq': args.validation_freq,
         'kernel_initial_1': args.kernel_initial_1,
         'kernel_initial_2': args.kernel_initial_2,
@@ -134,6 +135,11 @@ if __name__ == '__main__':
         type=int,
         help='Chunk size to load training data, default=200000',
         default=200000)
+    parser.add_argument(
+        '--chunk-size',
+        type=int,
+        help='Number of epochs to train, default=1',
+        default=1)
     parser.add_argument(
         '--validation_freq',
         type=int,
