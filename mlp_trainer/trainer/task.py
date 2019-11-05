@@ -36,6 +36,7 @@ def train_and_evaluate(args):
         'dropout_rate_3': args.dropout_rate_3,
         'optimizer': optimizer,
         'learning_rate': args.learning_rate,
+        'chunk_size': args.chunk_size,
         'batch_size': args.batch_size,
         'validation_freq': args.validation_freq,
         'kernel_initial_1': args.kernel_initial_1,
@@ -128,6 +129,11 @@ if __name__ == '__main__':
         type=int,
         help='Batch size, default=64',
         default=64)
+    parser.add_argument(
+        '--chunk-size',
+        type=int,
+        help='Chunk size to load training data, default=200000',
+        default=200000)
     parser.add_argument(
         '--validation_freq',
         type=int,
