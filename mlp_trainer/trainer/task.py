@@ -136,7 +136,7 @@ if __name__ == '__main__':
         help='Chunk size to load training data, default=200000',
         default=200000)
     parser.add_argument(
-        '--chunk-size',
+        '--epochs',
         type=int,
         help='Number of epochs to train, default=1',
         default=1)
