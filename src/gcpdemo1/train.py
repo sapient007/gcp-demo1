@@ -9,9 +9,6 @@ class MLPTrainer:
         # object attributes
         self.project_name = project_name
         self.table_id = table_id
-        self.timestamp = None
-        self.job_id = None
-        self.job_dir = None
 
     def train(self, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1, dropout_rate_2,
               dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs, validation_freq,
@@ -42,16 +39,16 @@ class MLPTrainer:
 
         # start job via gcloud
         os.system('gcloud config set project {}'.format(self.project_name))
-        os.system(f'gcloud ai-platform jobs submit training "{self.job_id}" \
+        os.system(f'gcloud ai-platform jobs submit training "{job_id}" \
         --scale-tier CUSTOM \
         --master-machine-type "standard_v100" \
         --staging-bucket "gs://gcp-cert-demo-1" \
         --package-path "trainer" \
         --module-name "trainer.task" \
-        --job-dir "gs://gcp-cert-demo-1/{self.job_dir}" \
+        --job-dir "gs://gcp-cert-demo-1/{job_dir}" \
         --region "us-central1" \
         --runtime-version 1.5 \
-        --python-version 3.5')
+        --python-version 3.5 -- --batch_size')
 
 
 if __name__ == "__main__":
