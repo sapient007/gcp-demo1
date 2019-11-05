@@ -14,8 +14,9 @@ class MLPTrainer:
         self.job_dir = None
 
     def train(self, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1, dropout_rate_2,
-              dropout_rate_3, optimizer, learning_rate, batch_size, validation_freq, kernel_initial_1, kernel_initial_2,
-              kernel_initial_3):
+              dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs, validation_freq,
+              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{time.time()}',
+              job_dir=f'mlp_model_{time.time()}'):
         """
 
         :param dense_neurons_1:
@@ -27,18 +28,17 @@ class MLPTrainer:
         :param dropout_rate_3:
         :param optimizer:
         :param learning_rate:
+        :param chunk_size:
         :param batch_size:
+        :param epochs:
         :param validation_freq:
         :param kernel_initial_1:
         :param kernel_initial_2:
         :param kernel_initial_3:
+        :param job_id:
+        :param job_dir:
         :return:
         """
-
-        # create job and model id
-        self.timestamp = time.time()
-        self.job_id = f'mlp_trainer_{self.timestamp}'
-        self.job_dir = f'mlp_model_{self.timestamp}'
 
         # start job via gcloud
         os.system('gcloud config set project {}'.format(self.project_name))
