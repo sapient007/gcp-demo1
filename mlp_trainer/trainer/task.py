@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--table_id',
+        '--table-id',
         type=str,
         help='BigQuery table containing dataset',
         default='finaltaxi_encoded_sampled_small')
