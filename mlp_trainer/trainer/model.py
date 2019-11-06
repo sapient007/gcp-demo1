@@ -238,8 +238,12 @@ def save_model(mlp_model, history, bucket, job_dir):
     """
 
     # export the model to a SavedModel
-    mlp_model.save('model.h5',
-                   overwrite=True)
+    tf.keras.models.save_model(
+        mlp_model,
+        file_path='model',
+        overwrite=True,
+        save_format='tf'
+    )
     upload_blob(
         bucket,
         source_file_name='model.h5',

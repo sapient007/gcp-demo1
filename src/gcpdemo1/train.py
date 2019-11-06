@@ -28,8 +28,8 @@ class MLPTrainer:
 
     def train(self, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1, dropout_rate_2,
               dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs, validation_freq,
-              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{time.time()}',
-              job_dir=f'mlp_model_{time.time()}'):
+              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{round(time.time())}',
+              job_dir=f'mlp_model_{round(time.time())}'):
         """
 
         :param dense_neurons_1:
@@ -95,7 +95,7 @@ class MLPTrainer:
         """
         os.system(f'gcloud ai-platform jobs describe {self.job_id}')
 
-    def deploy(self, model_name):
+    def deploy(self, model_name, version_name=f'v_{round(time.time())}'):
 
         # check if model training job is complete
         os.system(f'gcloud config set project {self.project_name}')
@@ -112,13 +112,17 @@ class MLPTrainer:
 
         # start job via gcloud
         else:
-            os.system(f'gcloud ai-platform models create {model_name}')
-            # os.system(f'gcloud ai-platform versions create $VERSION_NAME \
-            # --model={model_name} \
-            # --staging-bucket="gcp=cert-demo-1--origin={self.model_dir} \
-            # --runtime-version=1.5 \
-            # --framework "TENSORFLOW" \
-            # --python-version=3.5')
+            gcs_model_path = f'gs://gcp-cert-demo-1/{self.model_dir}'
+            logging.info(f'Deploying model "{model_name}" version "{version_name}" from "{gcs_model_path}"')
+            os.system(f'gcloud ai-platform models create {model_name} \
+            --regions us-east1')
+            os.system(f'gcloud ai-platform versions create {version_name} \
+            --model={model_name} \
+            --staging-bucket="gs://gcp-cert-demo-1" \
+            --origin={gcs_model_path} \
+            --runtime-version=1.5 \
+            --framework "TENSORFLOW" \
+            --python-version=3.5')
 
 
 if __name__ == "__main__":
