@@ -104,7 +104,7 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
-    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning.csv'
+    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning_1.csv'
 
     params = {
         "dense_neurons_1": [64, 9],
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # Todo - change these paths, test
     hp_tuner = HPTuner(project_name='ml-sandbox-1-191918',
                        job_id_prefix='demo1_hp_tuning_test_1',
-                       master_type='large_model_v100',
+                       master_type='complex_model_m_gpu',
                        job_dir_prefix='gs://gcp-cert-demo-1/mle_hp_tuning',
                        table_id='finaltaxi_encoded_sampled_small')
 
