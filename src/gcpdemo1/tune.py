@@ -13,6 +13,20 @@ from google.cloud import storage
 
 
 def download_blob(bucket_name, source_blob_name, destination_file_name, credentials):
+    """
+
+    :param bucket_name:
+    :param source_blob_name:
+    :param destination_file_name:
+    :param credentials:
+    :return:
+    """
+
+    if isinstance(credentials, str):
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
     storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(source_blob_name)
@@ -21,12 +35,19 @@ def download_blob(bucket_name, source_blob_name, destination_file_name, credenti
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name, credentials):
     """
-    Uploads a file to the bucket
+
     :param bucket_name:
     :param source_file_name:
     :param destination_blob_name:
+    :param credentials:
     :return:
     """
+
+    if isinstance(credentials, str):
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
 
     storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
     bucket = storage_client.get_bucket(bucket_name)
@@ -36,9 +57,10 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name, credential
 
 def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials):
 
-    os.system(f'python {local_trainer_package_path}/setup.py sdist --dist-dir {local_trainer_package_path}/dist')
+    os.chdir(local_trainer_package_path)
+    os.system(f'python setup.py sdist')  # --dist-dir {local_trainer_package_path}/dist
 
-    src_code_filepath = list(glob.glob(f'{local_trainer_package_path}/dist/*.tar.gz'))[0]
+    src_code_filepath = list(glob.glob('dist/*.tar.gz'))[0]  # {local_trainer_package_path}/
 
     upload_blob(bucket_name, src_code_filepath, destination_blob_name, credentials)
 
@@ -122,9 +144,10 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
+    sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
     project_name = 'ml-sandbox-1-191918'
     bucket_name = 'gcp-cert-demo-1'
-    local_trainer_package_path = '../mlp_trainer'
+    local_trainer_package_path = '../../mlp_trainer'
     gcs_trainer_package_path = 'hp_tune_test/trainer-0.1.tar.gz'  # do not include bucket name
     output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning_results.csv'
     job_id_prefix = 'gcpdemo1_mlp_tuning'
@@ -189,6 +212,6 @@ if __name__ == "__main__":
                        table_id=bq_table_id)
 
     tuning_log_path = hp_tuner.tune(bucket_name, gcs_trainer_package_path, local_trainer_package_path, params,
-                                    output_path)
+                                    output_path, sa_path)
 
     logging.info('Tuning output located at {}.'.format(tuning_log_path))
