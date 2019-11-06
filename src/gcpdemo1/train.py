@@ -134,32 +134,32 @@ if __name__ == "__main__":
     For local testing.
     """
 
-    # mlp train testing
-    mlp_trainer = MLPTrainer(
-        project_name='ml-sandbox-1-191918',
-        bucket='gcp-cert-demo-1',
-        table_id='finaltaxi_encoded_sampled_small'
-    )
-    mlp_trainer.train(
-        dense_neurons_1=64,
-        dense_neurons_2=32,
-        dense_neurons_3=8,
-        activation='relu',
-        dropout_rate_1=0.1,
-        dropout_rate_2=0.1,
-        dropout_rate_3=0.1,
-        optimizer='adam',
-        learning_rate=0.1,
-        chunk_size=500000,
-        batch_size=1024,
-        epochs=3,
-        validation_freq=5,
-        kernel_initial_1='normal',
-        kernel_initial_2='normal',
-        kernel_initial_3='normal',
-        job_id='mlp_trainer_src_test_9',
-        job_dir='mlp_model_src_test_9'
-    )
+    # # mlp train testing
+    # mlp_trainer = MLPTrainer(
+    #     project_name='ml-sandbox-1-191918',
+    #     bucket='gcp-cert-demo-1',
+    #     table_id='finaltaxi_encoded_sampled_small'
+    # )
+    # mlp_trainer.train(
+    #     dense_neurons_1=64,
+    #     dense_neurons_2=32,
+    #     dense_neurons_3=8,
+    #     activation='relu',
+    #     dropout_rate_1=0.1,
+    #     dropout_rate_2=0.1,
+    #     dropout_rate_3=0.1,
+    #     optimizer='adam',
+    #     learning_rate=0.1,
+    #     chunk_size=500000,
+    #     batch_size=1024,
+    #     epochs=3,
+    #     validation_freq=5,
+    #     kernel_initial_1='normal',
+    #     kernel_initial_2='normal',
+    #     kernel_initial_3='normal',
+    #     job_id='mlp_trainer_src_test_9',
+    #     job_dir='mlp_model_src_test_9'
+    # )
 
     # # status testing
     # mlp_trainer = MLPTrainer(
@@ -167,14 +167,14 @@ if __name__ == "__main__":
     #     bucket='gcp-cert-demo-1',
     #     table_id='finaltaxi_encoded_sampled_small'
     # )
-    # mlp_trainer.job_id = 'mlp_trainer_src_test_6'
+    # mlp_trainer.job_id = 'mlp_trainer_src_test_9'
     # mlp_trainer.training_status()
 
-    # # describe and deploy testing
-    # mlp_trainer = MLPTrainer(
-    #     project_name='ml-sandbox-1-191918',
-    #     bucket='gcp-cert-demo-1',
-    #     table_id='finaltaxi_encoded_sampled_small'
-    # )
-    # mlp_trainer.model_dir = 'mlp_model_src_test_6'
-    # mlp_trainer.deploy('mlp_deployed_src_test_6')
+    # describe and deploy testing
+    mlp_trainer = MLPTrainer(
+        project_name='ml-sandbox-1-191918',
+        bucket='gcp-cert-demo-1',
+        table_id='finaltaxi_encoded_sampled_small'
+    )
+    mlp_trainer.model_dir = 'mlp_model_src_test_9'
+    mlp_trainer.deploy('mlp_deployed_src_test_9')
