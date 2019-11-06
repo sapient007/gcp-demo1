@@ -106,7 +106,7 @@ class MLPTrainer:
         client = storage.Client()
         complete = storage.Blob(
             bucket=client.bucket(f'{self.bucket}'),
-            name=f'{self.model_dir}/model.h5'
+            name=f'{self.model_dir}/saved_model.pb'
         ).exists(client)
 
         # do not deploy, training incomplete
@@ -176,5 +176,5 @@ if __name__ == "__main__":
         bucket='gcp-cert-demo-1',
         table_id='finaltaxi_encoded_sampled_small'
     )
-    mlp_trainer.model_dir = 'mlp_model_src_test'
-    mlp_trainer.deploy('mlp_deployed_src_test')
+    mlp_trainer.model_dir = 'mlp_model_src_test_3'
+    mlp_trainer.deploy('mlp_deployed_src_test_3')
