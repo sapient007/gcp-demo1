@@ -13,23 +13,25 @@ logging.basicConfig(
 
 
 class MLPTrainer:
-    def __init__(self, project_name, table_id):
+    def __init__(self, project_name, bucket, table_id):
         """
 
         :param project_name:
+        :param bucket:
         :param table_id:
         """
 
         # object attributes
         self.project_name = project_name
+        self.bucket = bucket
         self.table_id = table_id
         self.job_id = None
         self.model_dir = None
 
     def train(self, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1, dropout_rate_2,
               dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs, validation_freq,
-              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{time.time()}',
-              job_dir=f'mlp_model_{time.time()}'):
+              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{round(time.time())}',
+              job_dir=f'mlp_model_{round(time.time())}'):
         """
 
         :param dense_neurons_1:
@@ -58,16 +60,17 @@ class MLPTrainer:
         self.model_dir = job_dir
 
         # start training job via gcloud
+        logging.info(f'Submitting training job "{self.job_id}", will save to "gs://{self.bucket}/{self.model_dir}"')
         os.system(f'gcloud config set project {self.project_name}')
         os.system(f'gcloud ai-platform jobs submit training "{job_id}" \
         --scale-tier CUSTOM \
         --master-machine-type "standard_v100" \
-        --staging-bucket "gs://gcp-cert-demo-1" \
+        --staging-bucket "gs://{self.bucket}" \
         --package-path "../../mlp_trainer/trainer" \
-        --module-name "trainer.task" \
-        --job-dir "gs://gcp-cert-demo-1/{job_dir}" \
+        --module-name "trainer.train" \
+        --job-dir "gs://{self.bucket}/{job_dir}" \
         --region "us-central1" \
-        --runtime-version 1.5 \
+        --runtime-version 1.14 \
         --python-version 3.5 \
         -- \
         --table-id="{self.table_id}" \
@@ -93,16 +96,17 @@ class MLPTrainer:
 
         :return:
         """
+        logging.info(f'Fetching status of training job "{self.job_id}"')
         os.system(f'gcloud ai-platform jobs describe {self.job_id}')
 
-    def deploy(self, model_name):
+    def deploy(self, model_name, version_name=f'v_{round(time.time())}'):
 
         # check if model training job is complete
         os.system(f'gcloud config set project {self.project_name}')
         client = storage.Client()
         complete = storage.Blob(
-            bucket=client.bucket('gcp-cert-demo-1'),
-            name=f'{self.model_dir}/model.h5'
+            bucket=client.bucket(f'{self.bucket}'),
+            name=f'{self.model_dir}/saved_model.pb'
         ).exists(client)
 
         # do not deploy, training incomplete
@@ -112,13 +116,17 @@ class MLPTrainer:
 
         # start job via gcloud
         else:
-            os.system(f'gcloud ai-platform models create {model_name}')
-            # os.system(f'gcloud ai-platform versions create $VERSION_NAME \
-            # --model={model_name} \
-            # --staging-bucket="gcp=cert-demo-1--origin={self.model_dir} \
-            # --runtime-version=1.5 \
-            # --framework "TENSORFLOW" \
-            # --python-version=3.5')
+            gcs_model_path = f'gs://{self.bucket}/{self.model_dir}'
+            logging.info(f'Deploying model "{model_name}" version "{version_name}" from "{gcs_model_path}"')
+            os.system(f'gcloud ai-platform models create {model_name} \
+            --regions us-east1')
+            os.system(f'gcloud ai-platform versions create {version_name} \
+            --model={model_name} \
+            --staging-bucket="gs://{self.bucket}" \
+            --origin={gcs_model_path} \
+            --runtime-version=1.14 \
+            --framework "TENSORFLOW" \
+            --python-version=3.5')
 
 
 if __name__ == "__main__":
@@ -126,44 +134,47 @@ if __name__ == "__main__":
     For local testing.
     """
 
-    # # mlp train testing
-    # mlp_trainer = MLPTrainer(
-    #     project_name='ml-sandbox-1-191918',
-    #     table_id='finaltaxi_encoded_sampled_small'
-    # )
-    # mlp_trainer.train(
-    #     dense_neurons_1=64,
-    #     dense_neurons_2=32,
-    #     dense_neurons_3=8,
-    #     activation='relu',
-    #     dropout_rate_1=0.1,
-    #     dropout_rate_2=0.1,
-    #     dropout_rate_3=0.1,
-    #     optimizer='adam',
-    #     learning_rate=0.1,
-    #     chunk_size=500000,
-    #     batch_size=1024,
-    #     epochs=3,
-    #     validation_freq=5,
-    #     kernel_initial_1='normal',
-    #     kernel_initial_2='normal',
-    #     kernel_initial_3='normal',
-    #     job_id=f'mlp_trainer_src_test',
-    #     job_dir=f'mlp_model_src_test'
-    # )
+    # mlp train testing
+    mlp_trainer = MLPTrainer(
+        project_name='ml-sandbox-1-191918',
+        bucket='gcp-cert-demo-1',
+        table_id='finaltaxi_encoded_sampled_small'
+    )
+    mlp_trainer.train(
+        dense_neurons_1=64,
+        dense_neurons_2=32,
+        dense_neurons_3=8,
+        activation='relu',
+        dropout_rate_1=0.1,
+        dropout_rate_2=0.1,
+        dropout_rate_3=0.1,
+        optimizer='adam',
+        learning_rate=0.1,
+        chunk_size=500000,
+        batch_size=1024,
+        epochs=3,
+        validation_freq=5,
+        kernel_initial_1='normal',
+        kernel_initial_2='normal',
+        kernel_initial_3='normal',
+        job_id='mlp_trainer_src_test_9',
+        job_dir='mlp_model_src_test_9'
+    )
 
     # # status testing
     # mlp_trainer = MLPTrainer(
     #     project_name='ml-sandbox-1-191918',
+    #     bucket='gcp-cert-demo-1',
     #     table_id='finaltaxi_encoded_sampled_small'
     # )
-    # mlp_trainer.job_id = 'mlp_trainer_src_test'
+    # mlp_trainer.job_id = 'mlp_trainer_src_test_6'
     # mlp_trainer.training_status()
 
-    # describe and deploy testing
-    mlp_trainer = MLPTrainer(
-        project_name='ml-sandbox-1-191918',
-        table_id='finaltaxi_encoded_sampled_small'
-    )
-    mlp_trainer.model_dir = 'mlp_model_src_test'
-    mlp_trainer.deploy(model_name='mlp_deployed_src_test')
+    # # describe and deploy testing
+    # mlp_trainer = MLPTrainer(
+    #     project_name='ml-sandbox-1-191918',
+    #     bucket='gcp-cert-demo-1',
+    #     table_id='finaltaxi_encoded_sampled_small'
+    # )
+    # mlp_trainer.model_dir = 'mlp_model_src_test_6'
+    # mlp_trainer.deploy('mlp_deployed_src_test_6')

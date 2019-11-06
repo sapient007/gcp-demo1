@@ -1,4 +1,3 @@
-import os
 import argparse
 
 import tensorflow as tf
@@ -48,15 +47,14 @@ def train_and_evaluate(args):
     # train model and get history
     history, mlp_model = model.train_mlp_batches(
         args.table_id,
-        params
+        params=params
     )
 
     # save model and history to job directory
     model.save_model(
         mlp_model,
-        history,
-        args.bucket,
-        args.job_dir
+        bucket=args.bucket,
+        job_dir=args.job_dir
     )
 
 
@@ -73,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--bucket',
         type=str,
-        help='GCS bucket to create job directory in',
+        help='Bucket for writing files',
         default='gcp-cert-demo-1')
     parser.add_argument(
         '--job-dir',

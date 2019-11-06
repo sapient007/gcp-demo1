@@ -1,5 +1,6 @@
 import os
 import math
+import logging
 import pandas as pd
 
 import tensorflow as tf
@@ -11,9 +12,8 @@ from google.cloud import bigquery
 from google.cloud import storage
 
 import trainer.data as data
-import logging
 
-# temp for testing GPU
+# TODO: temp for testing GPU
 from tensorflow.python.client import device_lib
 
 
@@ -121,11 +121,9 @@ def create_mlp(params):
             logging.FileHandler('gpu_testing.log'),
             logging.StreamHandler()
         ])
-    logging.info(device_lib.list_local_devices())
 
     # reset the tensorflow backend session.
     K.clear_session()
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     # define the model with variable hyperparameters.
     mlp_model = tf.keras.models.Sequential()
@@ -244,34 +242,26 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     blob.upload_from_filename(source_file_name)
 
 
-def save_model(mlp_model, history, bucket, job_dir):
+def save_model(mlp_model, bucket, job_dir):
     """
-    TODO: description
+
     :param mlp_model:
-    :param history:
     :param bucket:
     :param job_dir:
     :return:
     """
 
-    # export the model to a SavedModel
-    mlp_model.save('model.h5',
-                   overwrite=True)
-    upload_blob(
-        bucket,
-        source_file_name='model.h5',
-        destination_blob_name=os.path.join(job_dir, 'model.h5')
-    )
-    os.remove('model.h5')
+    tf.keras.experimental.export_saved_model(
+        mlp_model,
+        'model')
+    os.system('gsutil -m cp -r model {}'.format(job_dir))
 
-    # create history dataframe and write to csv
-    pd.DataFrame(history.history).to_csv(
-        'history.csv',
-        index=False
-    )
-    upload_blob(
-        bucket,
-        source_file_name='history.csv',
-        destination_blob_name=os.path.join(job_dir, 'history.csv')
-    )
-    os.remove('history.csv')
+    # # export the model to a SavedModel
+    # tf.keras.models.save_model(
+    #     mlp_model,
+    #     filepath=job_dir,
+    #     overwrite=True,
+    #     save_format='tf'
+    # )
+    # os.system('gsutil -m cp -r model {}'.format(job_dir))
+    # shutil.rmtree('model')
