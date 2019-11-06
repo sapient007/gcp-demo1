@@ -12,6 +12,8 @@ from google.cloud import storage
 
 import trainer.data as data
 import logging
+
+# temp for testing GPU
 from tensorflow.python.client import device_lib
 
 
@@ -121,10 +123,10 @@ def train_mlp(table_id, params):
             logging.StreamHandler()
         ])
     logging.info(device_lib.list_local_devices())
-    print(device_lib.list_local_devices())
 
     # Step 1: reset the tensorflow backend session.
     K.clear_session()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
     # Step 2: Define the model with variable hyperparameters.
     mlp_model = tf.keras.models.Sequential()
