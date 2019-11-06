@@ -11,6 +11,10 @@ from google.cloud import bigquery
 from google.cloud import storage
 
 import trainer.data as data
+import logging
+
+# temp for testing GPU
+from tensorflow.python.client import device_lib
 
 
 def recall_metric(y_true, y_pred):
@@ -102,18 +106,28 @@ def generator_input(table_id, chunk_size, batch_size, partition):
                 df_rows.append(row)
 
 
-def train_mlp(table_id, params):
+def create_mlp(params):
     """
-    TODO: description
-    :param table_id:
+
     :param params:
     :return:
     """
 
-    # Step 1: reset the tensorflow backend session.
-    K.clear_session()
+    # TODO: temp gpu testing
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
+        handlers=[
+            logging.FileHandler('gpu_testing.log'),
+            logging.StreamHandler()
+        ])
+    logging.info(device_lib.list_local_devices())
 
-    # Step 2: Define the model with variable hyperparameters.
+    # reset the tensorflow backend session.
+    K.clear_session()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+    # define the model with variable hyperparameters.
     mlp_model = tf.keras.models.Sequential()
     mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
@@ -139,12 +153,26 @@ def train_mlp(table_id, params):
         activation='sigmoid'
     ))
 
-    # Step 3: =compile with tensorflow optimizer.
+    # compile with tensorflow optimizer.
     mlp_model.compile(
         optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
         loss='binary_crossentropy',
         metrics=['accuracy', f1_metric]
     )
+
+    return mlp_model
+
+
+def train_mlp_batches(table_id, params):
+    """
+    TODO: description
+    :param table_id:
+    :param params:
+    :return:
+    """
+
+    # create model and define early stopping
+    mlp_model = create_mlp(params)
     es = tf.keras.callbacks.EarlyStopping(
         monitor='loss',
         mode='min',
@@ -152,7 +180,7 @@ def train_mlp(table_id, params):
         patience=50
     )
 
-    # Step 4: Train the model on TPU with fixed batch size.
+    # train the model on TPU with fixed batch size.
     history = mlp_model.fit_generator(
         generator_input(
             table_id,

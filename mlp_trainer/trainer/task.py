@@ -46,7 +46,7 @@ def train_and_evaluate(args):
     }
 
     # train model and get history
-    history, mlp_model = model.train_mlp(
+    history, mlp_model = model.train_mlp_batches(
         args.table_id,
         params
     )
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--table_id',
+        '--table-id',
         type=str,
         help='BigQuery table containing dataset',
         default='finaltaxi_encoded_sampled_small')
@@ -138,8 +138,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--epochs',
         type=int,
-        help='Number of epochs to train, default=1',
-        default=1)
+        help='Number of epochs to train, default=3',
+        default=3)
     parser.add_argument(
         '--validation_freq',
         type=int,
