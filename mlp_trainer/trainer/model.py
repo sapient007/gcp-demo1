@@ -213,21 +213,6 @@ def train_mlp_batches(table_id, params):
     return history, mlp_model
 
 
-def upload_blob(bucket_name, source_file_name, destination_blob_name):
-    """
-    Uploads a file to the bucket
-    :param bucket_name:
-    :param source_file_name:
-    :param destination_blob_name:
-    :return:
-    """
-
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name.split(bucket_name + '/')[-1])
-    blob.upload_from_filename(source_file_name)
-
-
 def save_model(mlp_model, job_dir):
     """
     TODO: description
