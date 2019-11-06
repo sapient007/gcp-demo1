@@ -11,7 +11,7 @@ import model
 def tune(dataset_name, output_path, params):
 
     logging.info("Preprocessing dataset {}.".format(dataset_name))
-    X_train, y_train, X_test, y_test, X_val, y_val = model.process_data(dataset_name)
+    # X_train, y_train, X_test, y_test, X_val, y_val = model.process_data(dataset_name)
 
     # Run the tuning
     logging.info('Running scan on hyper-parameters')
