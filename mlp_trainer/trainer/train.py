@@ -52,9 +52,9 @@ def train_and_evaluate(args):
     )
 
     # save model and history to job directory
-    model.to_savedmodel(
+    model.save_model(
         mlp_model,
-        export_path=args.job_dir
+        job_dir=args.job_dir
     )
 
 
