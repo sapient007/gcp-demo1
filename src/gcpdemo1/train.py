@@ -157,8 +157,8 @@ if __name__ == "__main__":
     #     kernel_initial_1='normal',
     #     kernel_initial_2='normal',
     #     kernel_initial_3='normal',
-    #     job_id='mlp_trainer_src_test_5',
-    #     job_dir='mlp_model_src_test_5'
+    #     job_id='mlp_trainer_src_test_6',
+    #     job_dir='mlp_model_src_test_6'
     # )
 
     # # status testing
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     #     bucket='gcp-cert-demo-1',
     #     table_id='finaltaxi_encoded_sampled_small'
     # )
-    # mlp_trainer.job_id = 'mlp_trainer_src_test_5'
+    # mlp_trainer.job_id = 'mlp_trainer_src_test_6'
     # mlp_trainer.training_status()
 
     # describe and deploy testing
@@ -176,5 +176,5 @@ if __name__ == "__main__":
         bucket='gcp-cert-demo-1',
         table_id='finaltaxi_encoded_sampled_small'
     )
-    mlp_trainer.model_dir = 'mlp_model_src_test_5'
-    mlp_trainer.deploy('mlp_deployed_src_test_5')
+    mlp_trainer.model_dir = 'mlp_model_src_test_6'
+    mlp_trainer.deploy('mlp_deployed_src_test_6')

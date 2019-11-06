@@ -248,12 +248,14 @@ def save_model(mlp_model, job_dir):
     :return:
     """
 
-    # export the model to a SavedModel
-    tf.keras.models.save_model(
-        mlp_model,
-        filepath=job_dir,
-        overwrite=True,
-        save_format='tf'
-    )
+    mlp_model.save(job_dir)
+
+    # # export the model to a SavedModel
+    # tf.keras.models.save_model(
+    #     mlp_model,
+    #     filepath=job_dir,
+    #     overwrite=True,
+    #     save_format='tf'
+    # )
     # os.system('gsutil -m cp -r model {}'.format(job_dir))
     # shutil.rmtree('model')
