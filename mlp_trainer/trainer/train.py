@@ -53,6 +53,7 @@ def train_and_evaluate(args):
     # save model and history to job directory
     model.save_model(
         mlp_model,
+        bucket=args.bucket,
         job_dir=args.job_dir
     )
 
@@ -67,6 +68,11 @@ if __name__ == '__main__':
         type=str,
         help='BigQuery table containing dataset',
         default='finaltaxi_encoded_sampled_small')
+    parser.add_argument(
+        '--bucket',
+        type=str,
+        help='Bucket for writing files',
+        default='gcp-cert-demo-1')
     parser.add_argument(
         '--job-dir',
         type=str,
