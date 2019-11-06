@@ -93,7 +93,7 @@ if __name__ == '__main__':
             'dropout_rate_1': [0.5],
             'dropout_rate_2': [0.5],
             'dropout_rate_3': [0.5],
-            'optimizer': [tf.keras.optimizers.Adam],
+            'optimizer': ['Adam'],
             'learning_rate': [.0001],
             'kernel_initial_1': ['normal'],
             'kernel_initial_2': ['normal'],
@@ -109,19 +109,20 @@ if __name__ == '__main__':
         print(args.parameters)
         params = json.loads(args.parameters)
 
-
+    # Create optimizers
     optimizers = []
     if 'Adam' in params['optimizer']:
         optimizers.append(tf.keras.optimizers.Adam)
+    if 'Nadam' in params['optimizer']:
+        optimizers.append(tf.keras.optimizers.Nadam)
+    if 'RMSprop' in params['optimizer']:
+        optimizers.append(tf.keras.optimizers.RMSprop)
+    if 'SGD' in params['optimizer']:
+        optimizers.append(tf.keras.optimizers.SGD)
 
     if len(optimizers) == 0:
         optimizers = [tf.keras.optimizers.Adam]
 
     params['optimizer'] = optimizers
 
-    # TODO - check both GCS location is valid
-    # logging.info(args.dataset_name[5:])
-    # if tf.io.gfile.exists(args.dataset_name[5:]):
-
     tune(args.table_id, args.output_path, params)
-
