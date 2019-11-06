@@ -228,11 +228,10 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     blob.upload_from_filename(source_file_name)
 
 
-def save_model(mlp_model, bucket, job_dir):
+def save_model(mlp_model, job_dir):
     """
     TODO: description
     :param mlp_model:
-    :param bucket:
     :param job_dir:
     :return:
     """
@@ -240,9 +239,9 @@ def save_model(mlp_model, bucket, job_dir):
     # export the model to a SavedModel
     tf.keras.models.save_model(
         mlp_model,
-        filepath=os.path.join(job_dir, 'model'),
+        filepath='model',
         overwrite=True,
         save_format='tf'
     )
-    os.system('gsutil -m cp -r model {}'.format(bucket))
+    os.system('gsutil -m cp -r model {}'.format(job_dir))
     shutil.rmtree('model')
