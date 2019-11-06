@@ -2,21 +2,41 @@ import json
 import logging
 import argparse
 import talos as ta
+import pandas as pd
 import tensorflow as tf
 
 # Custom code
-import model
+import trainer.model as model
+import trainer.data as data
 
 
-def tune(dataset_name, output_path, params):
+def process_data(table_id, partitions=['train', 'validation', 'test']):
 
-    logging.info("Preprocessing dataset {}.".format(dataset_name))
-    # X_train, y_train, X_test, y_test, X_val, y_val = model.process_data(dataset_name)
+    datasets = {}
+    for partition in partitions:
+        datasets[partition] = {}
+        rows = data.get_reader_rows(table_id, partition)
+        print(type(rows))
+
+        df = pd.DataFrame(rows)
+
+        datasets[partition]['y'] = df['cash'].values
+        datasets[partition]['x'] = df.drop('cash', axis=1).values
+
+    return datasets['train']['x'], datasets['train']['y'], \
+           datasets['test']['x'], datasets['test']['y'], \
+           datasets['validation']['x'], datasets['validation']['y']
+
+
+def tune(table_id, output_path, params):
+
+    # logging.info("Preprocessing dataset {}.".format(table_id))
+    X_train, y_train, X_test, y_test, x_val, y_val = process_data(table_id)
 
     # Run the tuning
     logging.info('Running scan on hyper-parameters')
-    scan_results = ta.Scan(x=X_train, y=y_train, x_val=X_val, y_val=y_val, params=params, model=model.train_mlp,
-                           experiment_name='test_1')
+    scan_results = ta.Scan(x=X_train, y=y_train, x_val=x_val, y_val=y_val,
+                           params=params, model=model.train_mlp, experiment_name='HP_Tuning')
 
     logging.info('Scanning complete.')
 
@@ -32,18 +52,18 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        'dataset_name',
+        '--table_id',
         type=str,
         help='Dataset file local or GCS')
 
     parser.add_argument(
-        'output_path',
+        '--output_path',
         type=str,
         help='Output file to be saved to GCS')
 
     parser.add_argument(
         '--parameters',
-        type=float,
+        type=str,
         default=None,
         help='Dictionary containing parameters. See README for acceptable & default values.')
 
@@ -76,23 +96,31 @@ if __name__ == '__main__':
             'learning_rate': [.0001],
             'kernel_initial_1': ['normal'],
             'kernel_initial_2': ['normal'],
-            'kernel_initial_3': ['normal']
+            'kernel_initial_3': ['normal'],
+
+            'batch_size': [1024],
+            'chunk_size': [500000],
+            'epochs': [40],
+            'validation_freq': [5],
+            'patience': [5]
         }
     else:
+        print(args.parameters)
         params = json.loads(args.parameters)
 
-        optimizers = []
-        if 'Adam' in params['optimizer']:
-            optimizers.append(tf.keras.optimizers.Adam)
 
-        if len(optimizers) == 0:
-            optimizers = [tf.keras.optimizers.Adam]
+    optimizers = []
+    if 'Adam' in params['optimizer']:
+        optimizers.append(tf.keras.optimizers.Adam)
 
-        params['optimizer'] = optimizers
+    if len(optimizers) == 0:
+        optimizers = [tf.keras.optimizers.Adam]
+
+    params['optimizer'] = optimizers
 
     # TODO - check both GCS location is valid
     # logging.info(args.dataset_name[5:])
     # if tf.io.gfile.exists(args.dataset_name[5:]):
 
-    tune(args.dataset_name, args.outputh_path, params)
+    tune(args.table_id, args.output_path, params)
 

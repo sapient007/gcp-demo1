@@ -163,6 +163,23 @@ def create_mlp(params):
     return mlp_model
 
 
+def train_mlp(x_train, y_train, x_val, y_val, params):
+    tf.keras.backend.clear_session()
+
+    model = create_mlp(params)
+
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=params['patience'])
+
+    out = model.fit(
+        x_train, y_train, epochs=params['epochs'], batch_size=params['batch_size'],
+        verbose=0,
+        validation_data=(x_val, y_val),
+        callbacks=[es]
+    )
+
+    return out, model
+
+
 def train_mlp_batches(table_id, params):
     """
     TODO: description
@@ -174,7 +191,7 @@ def train_mlp_batches(table_id, params):
     # create model and define early stopping
     mlp_model = create_mlp(params)
     es = tf.keras.callbacks.EarlyStopping(
-        monitor='loss',
+        monitor='val_loss',
         mode='min',
         verbose=0,
         patience=50
