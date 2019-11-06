@@ -46,7 +46,7 @@ def train_and_evaluate(args):
     }
 
     # train model and get history
-    history, mlp_model = model.train_mlp(
+    history, mlp_model = model.train_mlp_batches(
         args.table_id,
         params
     )
