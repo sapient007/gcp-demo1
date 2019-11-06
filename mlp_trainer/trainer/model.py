@@ -1,5 +1,4 @@
 import os
-import shutil
 import math
 import logging
 import pandas as pd
@@ -14,11 +13,10 @@ from tensorflow.python.saved_model.signature_def_utils_impl import predict_signa
 from talos.model.normalizers import lr_normalizer
 
 from google.cloud import bigquery
-from google.cloud import storage
 
 import trainer.data as data
 
-# temp for testing GPU
+# TODO: temp for testing GPU
 from tensorflow.python.client import device_lib
 
 
