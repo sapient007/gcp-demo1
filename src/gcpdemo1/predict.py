@@ -1,5 +1,10 @@
-import googleapiclient.discovery
 import logging
+import pandas as pd
+
+import googleapiclient.discovery
+from google.cloud import bigquery
+
+import data
 
 
 logging.basicConfig(
@@ -43,6 +48,7 @@ class Predictor:
 
         logging.info(f'Predicting using model "{self.model}" version "{self.version}"')
         response = self.service.projects().predict(name=self.name, body={'instances': instances}).execute()
+        print(response)
 
         # if 'error' in response:
         #     raise RuntimeError(response['error'])
@@ -56,10 +62,28 @@ if __name__ == "__main__":
     """
 
     project = 'ml-sandbox-1-191918'
-    model = 'taxi_model_1565105801'
 
-    instances = [{"csv_row": "6,0.927083333,0.9375,116,4,2013,0.1,0.606309877,0.671360099,0.653137315,0.663879711", "key": "dummy-key"}]
+    rows = data.get_reader_rows(
+        'finaltaxi_encoded_sampled_small',
+        partition_name='test'
+    )
+    df = pd.DataFrame(list(rows)[:10])
+    df = df.drop(
+        'cash',
+        axis=1
+    )
+    vals = df.values
+    instances = []
+    for i, val in enumerate(vals):
+        instances.append({
+            'dense_input': list(val),
+        })
+    print(instances)
 
-    predictor = Predictor(project, model)
+    predictor = Predictor(
+        project,
+        model='mlp_deployed_src_test_9',
+        version='v_1573072064'
+    )
 
     print(predictor.predict(instances))
