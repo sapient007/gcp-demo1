@@ -67,7 +67,7 @@ class MLPTrainer:
         --master-machine-type "standard_v100" \
         --staging-bucket "gs://{self.bucket}" \
         --package-path "../../mlp_trainer/trainer" \
-        --module-name "trainer.task" \
+        --module-name "trainer.train" \
         --job-dir "gs://{self.bucket}/{job_dir}" \
         --region "us-central1" \
         --runtime-version 1.5 \
