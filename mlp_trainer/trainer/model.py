@@ -9,12 +9,8 @@ import tensorflow.keras.backend as K
 from talos.model.normalizers import lr_normalizer
 
 from google.cloud import bigquery
-from google.cloud import storage
 
 import trainer.data as data
-
-# TODO: temp for testing GPU
-from tensorflow.python.client import device_lib
 
 
 def recall_metric(y_true, y_pred):
@@ -113,15 +109,6 @@ def create_mlp(params):
     :return:
     """
 
-    # TODO: temp gpu testing
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
-        handlers=[
-            logging.FileHandler('gpu_testing.log'),
-            logging.StreamHandler()
-        ])
-
     # reset the tensorflow backend session.
     K.clear_session()
 
@@ -210,26 +197,10 @@ def train_mlp_batches(table_id, params):
     return history, mlp_model
 
 
-def upload_blob(bucket_name, source_file_name, destination_blob_name):
-    """
-    Uploads a file to the bucket
-    :param bucket_name:
-    :param source_file_name:
-    :param destination_blob_name:
-    :return:
-    """
-
-    storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name.split(bucket_name + '/')[-1])
-    blob.upload_from_filename(source_file_name)
-
-
-def save_model(mlp_model, bucket, job_dir):
+def save_model(mlp_model, job_dir):
     """
 
     :param mlp_model:
-    :param bucket:
     :param job_dir:
     :return:
     """
@@ -238,13 +209,3 @@ def save_model(mlp_model, bucket, job_dir):
         mlp_model,
         'model')
     os.system('gsutil -m cp -r model {}'.format(job_dir))
-
-    # # export the model to a SavedModel
-    # tf.keras.models.save_model(
-    #     mlp_model,
-    #     filepath=job_dir,
-    #     overwrite=True,
-    #     save_format='tf'
-    # )
-    # os.system('gsutil -m cp -r model {}'.format(job_dir))
-    # shutil.rmtree('model')
