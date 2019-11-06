@@ -2,6 +2,12 @@ import googleapiclient.discovery
 import logging
 
 
+logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
+        handlers=[logging.StreamHandler()])
+
+
 class Predictor:
     def __init__(self, project, model, version=None):
         """Send json data to a deployed model for prediction.
@@ -35,6 +41,7 @@ class Predictor:
 
     def predict(self, instances):
 
+        logging.info(f'Predicting using model "{self.model}" version "{self.version}"')
         response = self.service.projects().predict(name=self.name, body={'instances': instances}).execute()
 
         # if 'error' in response:
@@ -47,14 +54,6 @@ if __name__ == "__main__":
     """
     For local testing.
     """
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)-4.5s]  %(message)s',
-        handlers=[
-            logging.FileHandler('predictor.log'),
-            logging.StreamHandler()
-        ])
 
     project = 'ml-sandbox-1-191918'
     model = 'taxi_model_1565105801'
