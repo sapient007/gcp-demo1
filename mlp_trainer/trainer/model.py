@@ -1,4 +1,5 @@
 import os
+import shutil
 import math
 import pandas as pd
 
@@ -227,11 +228,10 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
     blob.upload_from_filename(source_file_name)
 
 
-def save_model(mlp_model, history, bucket, job_dir):
+def save_model(mlp_model, bucket, job_dir):
     """
     TODO: description
     :param mlp_model:
-    :param history:
     :param bucket:
     :param job_dir:
     :return:
@@ -240,25 +240,9 @@ def save_model(mlp_model, history, bucket, job_dir):
     # export the model to a SavedModel
     tf.keras.models.save_model(
         mlp_model,
-        file_path='model',
+        filepath=os.path.join(job_dir, 'model'),
         overwrite=True,
         save_format='tf'
     )
-    upload_blob(
-        bucket,
-        source_file_name='model.h5',
-        destination_blob_name=os.path.join(job_dir, 'model.h5')
-    )
-    os.remove('model.h5')
-
-    # create history dataframe and write to csv
-    pd.DataFrame(history.history).to_csv(
-        'history.csv',
-        index=False
-    )
-    upload_blob(
-        bucket,
-        source_file_name='history.csv',
-        destination_blob_name=os.path.join(job_dir, 'history.csv')
-    )
-    os.remove('history.csv')
+    os.system('gsutil -m cp -r model {}'.format(bucket))
+    shutil.rmtree('model')

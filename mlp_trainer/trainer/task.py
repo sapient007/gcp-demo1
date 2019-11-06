@@ -54,7 +54,6 @@ def train_and_evaluate(args):
     # save model and history to job directory
     model.save_model(
         mlp_model,
-        history,
         args.bucket,
         args.job_dir
     )

@@ -58,6 +58,7 @@ class MLPTrainer:
         self.model_dir = job_dir
 
         # start training job via gcloud
+        logging.info(f'Submitting training job "{self.job_id}", will save to "gs://gcp-cert-demo-1.{self.model_dir}"')
         os.system(f'gcloud config set project {self.project_name}')
         os.system(f'gcloud ai-platform jobs submit training "{job_id}" \
         --scale-tier CUSTOM \
@@ -93,6 +94,7 @@ class MLPTrainer:
 
         :return:
         """
+        logging.info(f'Fetching status of training job "{self.job_id}"')
         os.system(f'gcloud ai-platform jobs describe {self.job_id}')
 
     def deploy(self, model_name, version_name=f'v_{round(time.time())}'):
@@ -152,22 +154,22 @@ if __name__ == "__main__":
     #     kernel_initial_1='normal',
     #     kernel_initial_2='normal',
     #     kernel_initial_3='normal',
-    #     job_id=f'mlp_trainer_src_test',
-    #     job_dir=f'mlp_model_src_test'
+    #     job_id=f'mlp_trainer_src_test_1',
+    #     job_dir=f'mlp_model_src_test_1'
     # )
 
-    # # status testing
-    # mlp_trainer = MLPTrainer(
-    #     project_name='ml-sandbox-1-191918',
-    #     table_id='finaltaxi_encoded_sampled_small'
-    # )
-    # mlp_trainer.job_id = 'mlp_trainer_src_test'
-    # mlp_trainer.training_status()
-
-    # describe and deploy testing
+    # status testing
     mlp_trainer = MLPTrainer(
         project_name='ml-sandbox-1-191918',
         table_id='finaltaxi_encoded_sampled_small'
     )
-    mlp_trainer.model_dir = 'mlp_model_src_test'
-    mlp_trainer.deploy(model_name='mlp_deployed_src_test')
+    mlp_trainer.job_id = 'mlp_trainer_src_test_1'
+    mlp_trainer.training_status()
+
+    # # describe and deploy testing
+    # mlp_trainer = MLPTrainer(
+    #     project_name='ml-sandbox-1-191918',
+    #     table_id='finaltaxi_encoded_sampled_small'
+    # )
+    # mlp_trainer.model_dir = 'mlp_model_src_test'
+    # mlp_trainer.deploy(model_name='mlp_deployed_src_test')
