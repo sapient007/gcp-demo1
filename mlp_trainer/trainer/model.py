@@ -4,6 +4,7 @@ import pandas as pd
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
+from tensorflow.python.client import device_lib
 
 from talos.model.normalizers import lr_normalizer
 
@@ -137,6 +138,10 @@ def create_mlp(params):
         activation='sigmoid'
     ))
 
+    num_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+    if num_gpus > 1:
+        mlp_model = tf.keras.utils.multi_gpu_model(mlp_model, num_gpus)
+
     # compile with tensorflow optimizer.
     mlp_model.compile(
         optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
@@ -145,6 +150,23 @@ def create_mlp(params):
     )
 
     return mlp_model
+
+
+def train_mlp(x_train, y_train, x_val, y_val, params):
+    tf.keras.backend.clear_session()
+
+    model = create_mlp(params)
+
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', mode='min', verbose=0, patience=params['patience'])
+
+    out = model.fit(
+        x_train, y_train, epochs=params['epochs'], batch_size=params['batch_size'],
+        verbose=0,
+        validation_data=(x_val, y_val),
+        callbacks=[es]
+    )
+
+    return out, model
 
 
 def train_mlp_batches(table_id, params):

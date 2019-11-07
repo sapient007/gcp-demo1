@@ -1,18 +1,74 @@
 import os
 import json
 import time
+import glob
 import logging
+import subprocess
 
-import tensorflow as tf
-
+from google.oauth2 import service_account
 from googleapiclient import discovery
 from googleapiclient import errors
 
-# TODO - CHANGE IMAGE TO USE
+from google.cloud import storage
+
+
+def download_blob(bucket_name, source_blob_name, destination_file_name, credentials):
+    """
+
+    :param bucket_name:
+    :param source_blob_name:
+    :param destination_file_name:
+    :param credentials:
+    :return:
+    """
+
+    if isinstance(credentials, str):
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+    storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    blob.download_to_filename(destination_file_name)
+
+
+def upload_blob(bucket_name, source_file_name, destination_blob_name, credentials):
+    """
+
+    :param bucket_name:
+    :param source_file_name:
+    :param destination_blob_name:
+    :param credentials:
+    :return:
+    """
+
+    if isinstance(credentials, str):
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+
+    storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+
+
+def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials):
+
+    os.chdir(local_trainer_package_path)
+    os.system(f'bash build.sh')  # --dist-dir {local_trainer_package_path}/dist
+
+    src_code_filepath = list(glob.glob('dist/*.tar.gz'))[0]  # {local_trainer_package_path}/
+
+    upload_blob(bucket_name, src_code_filepath, destination_blob_name, credentials)
+
+    return f'gs://{bucket_name}/{destination_blob_name}'
 
 
 class HPTuner:
-    def __init__(self, project_name, job_id_prefix, master_type, job_dir_prefix, training_data_path):
+    def __init__(self, project_name, job_id_prefix, master_type, job_dir_prefix, table_id):
         """
         TODO: class description
         :param project_name:
@@ -27,12 +83,9 @@ class HPTuner:
         self.job_id_prefix = job_id_prefix
         self.master_type = master_type
         self.job_dir_prefix = job_dir_prefix
-        self.training_data_path = training_data_path
-        self.unique_id = None
-        self.job_id = None
-        self.job_dir = None
+        self.table_id = table_id
 
-    def tune(self, parameters, output_path):
+    def tune(self, bucket_name, destination_blob_name, local_trainer_package_path, parameters, output_path, sa_path):
         """
 
         :param parameters:
@@ -40,47 +93,40 @@ class HPTuner:
         :return:
         """
 
+        credentials = service_account.Credentials.from_service_account_file(
+            sa_path,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+
+        package_uri = build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials)
+
+        param_string = json.dumps(parameters).replace('\'', '\"')  # .replace('\"', '\\\"')
+
         # Run a local test
-        os.system(f'python tune.py --dataset_name={self.training_data_path} \
-        --output_path={output_path} \
-        --parameters={json.dumps(parameters)}')
-
-
-        # create job and model id
-        # self.unique_id = time.time()
-        # self.job_id = "{}_{}".format(self.job_id_prefix, self.unique_id)
-        # self.job_dir = "{}_{}".format(self.job_dir_prefix, self.unique_id)
-
-        # start job via gcloud
-        # os.system('gcloud config set project {}'.format(self.project_name))
-        # os.system(f'gcloud ai-platform jobs submit training {self.job_id} \
-        # --region us-central1 \
-        # --master-image-uri=gcr.io/cloud-ml-algos/linear_learner_cpu:latest \
-        # --scale-tier=CUSTOM \
-        # --master-machine-type={self.master_type} \
-        # --job-dir={self.job_dir} \
-        # -- \
-        # --dataset_name={self.training_data_path} \
+        # os.system(f'python ../../mlp_trainer/trainer/tune.py --table_id={self.table_id} \
         # --output_path={output_path} \
-        # --parameters={json.dumps(parameters)}')
+        # --parameters=\"{param_string}\"')
 
-        # start job via python client library
-        # project_id = 'projects/{}'.format(self.project_name)
-        # cloudml = discovery.build('ml', 'v1')
-        # training_inputs = {'region': 'us-central1',
-        #                    'masterConfig': {'imageUri': 'gcr.io/cloud-ml-algos/linear_learner_cpu:latest'},
-        #                    'scaleTier': 'CUSTOM',
-        #                    'masterType': self.master_type,
-        #                    'jobDir': self.job_dir,
-        #                    'args': ['--dataset_name', self.training_data_path,
-        #                             '--output_path', output_path,
-        #                             '--parameters', json.dumps(parameters)]}
-        # job_spec = {'jobId': self.job_id,
-        #             'trainingInput': training_inputs}
-        # request = cloudml.projects().jobs().create(body=job_spec,
-        #                                            parent=project_id)
-        # response = request.execute()
-        # print(response)
+        # Create job via python client library
+        project_id = 'projects/{}'.format(self.project_name)
+        cloudml = discovery.build('ml', 'v1', credentials=credentials)
+        training_inputs = {'scaleTier': 'CUSTOM',
+                           'masterType': self.master_type,
+                           'packageUris': [package_uri],
+                           'pythonModule': 'trainer.tune',
+                           'region': 'us-central1',
+                           'jobDir': f'{self.job_dir_prefix}_{time.strftime("%Y%m%d_%H%M%S")}',
+                           'runtimeVersion': '1.14',
+                           'pythonVersion': '3.5',
+                           'args': ['--table_id', self.table_id,
+                                    '--output_path', output_path,
+                                    '--parameters', param_string]}
+        job_spec = {'jobId': f'{self.job_id_prefix}_{time.strftime("%Y%m%d_%H%M%S")}',
+                    'trainingInput': training_inputs}
+        request = cloudml.projects().jobs().create(body=job_spec,
+                                                   parent=project_id)
+        response = request.execute()
+        # Todo - check response
 
         return output_path
 
@@ -98,30 +144,74 @@ if __name__ == "__main__":
             logging.StreamHandler()
         ])
 
-    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning.csv'
+    sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
+    project_name = 'ml-sandbox-1-191918'
+    bucket_name = 'gcp-cert-demo-1'
+    local_trainer_package_path = '../../mlp_trainer'
+    gcs_trainer_package_path = 'hp_tune_test/trainer-0.1.tar.gz'  # do not include bucket name
+    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning_results.csv'
+    job_id_prefix = 'gcpdemo1_mlp_tuning'
+    job_dir_prefix = 'gs://gcp-cert-demo-1/hp_tune_test'
+    machine_type = 'large_model_v100'  # https://cloud.google.com/ml-engine/docs/machine-types
+    bq_table_id = 'finaltaxi_encoded_sampled_small'
 
-    parameters = {
-        'dense_neurons_1': [64, 9],
-        'dense_neurons_2': [32],
-        'dense_neurons_3': [8],
-        'activation': ['relu'],
-        'dropout_rate_1': [0.5],
-        'dropout_rate_2': [0.5],
-        'dropout_rate_3': [0.5],
-        'optimizer': [tf.keras.optimizers.Adam],
-        'learning_rate': [.0001],
-        'kernel_initial_1': ['normal'],
-        'kernel_initial_2': ['normal'],
-        'kernel_initial_3': ['normal']
+    # Optimizer parameters:
+    #      "Adam"    for tf.keras.optimizers.Adam
+    #      "Nadam"   for tf.keras.optimizers.Nadam
+    #      "RMSprop" for tf.keras.optimizers.RMSprop
+    #      "SGD"     for tf.keras.optimizers.SGD
+
+    params = {
+        # Tunable params
+        "dense_neurons_1": [64, 128, 9],
+        "dense_neurons_2": [32, 64, 5],
+        "dense_neurons_3": [8, 32, 7],
+        "activation": ["relu", "elu"],
+        "dropout_rate_1": [0, 0.5, 5],
+        "dropout_rate_2": [0, 0.5, 5],
+        "dropout_rate_3": [0, 0.5, 5],
+        "optimizer": ["Adam", "Nadam", "RMSprop", "SGD"],
+        "learning_rate": [.0001, .0005, .001, .005, .01, .05, .1, .5, 1],
+        "kernel_initial_1": ["normal", "glorot_normal", "he_normal", "lecun_normal"],
+        "kernel_initial_2": ["normal", "glorot_normal", "he_normal", "lecun_normal"],
+        "kernel_initial_3": ["normal", "glorot_normal", "he_normal", "lecun_normal"],
+
+        # Static params
+        "batch_size": [128],
+        "chunk_size": [500000],
+        "epochs": [40],
+        "validation_freq": [1],
+        "patience": [20]
     }
 
-    # Todo - change these paths, test
-    hp_tuner = HPTuner(project_name='ml-sandbox-1-191918',
-                       job_id_prefix='demo1_linear_learner',
-                       master_type='large_model_v100',
-                       job_dir_prefix='gs://gcp-cert-demo-1/linear_learner_',
-                       training_data_path='gs://gcp-cert-demo-1/data/csv/train-single.csv')
+    # params = {
+    #     "dense_neurons_1": [64, 9],
+    #     "dense_neurons_2": [32],
+    #     "dense_neurons_3": [8],
+    #     "activation": ["relu"],
+    #     "dropout_rate_1": [0.5],
+    #     "dropout_rate_2": [0.5],
+    #     "dropout_rate_3": [0.5],
+    #     "optimizer": ["Adam"],
+    #     "learning_rate": [.0001],
+    #     "kernel_initial_1": ["normal"],
+    #     "kernel_initial_2": ["normal"],
+    #     "kernel_initial_3": ["normal"],
+    #
+    #     "batch_size": [1024],
+    #     "chunk_size": [500000],
+    #     "epochs": [40],
+    #     "validation_freq": [5],
+    #     "patience": [5]
+    # }
 
-    tuning_log_path = hp_tuner.tune(parameters, output_path)
+    hp_tuner = HPTuner(project_name=project_name,
+                       job_id_prefix=job_id_prefix,
+                       master_type=machine_type,
+                       job_dir_prefix=job_dir_prefix,
+                       table_id=bq_table_id)
+
+    tuning_log_path = hp_tuner.tune(bucket_name, gcs_trainer_package_path, local_trainer_package_path, params,
+                                    output_path, sa_path)
 
     logging.info('Tuning output located at {}.'.format(tuning_log_path))
