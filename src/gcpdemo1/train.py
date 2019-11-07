@@ -4,6 +4,8 @@ import time
 
 from google.cloud import storage
 
+from googleapiclient import discovery
+
 
 # begin logging
 logging.basicConfig(
@@ -28,12 +30,14 @@ class MLPTrainer:
         self.job_id = None
         self.model_dir = None
 
-    def train(self, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1, dropout_rate_2,
-              dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs, validation_freq,
-              kernel_initial_1, kernel_initial_2, kernel_initial_3, job_id=f'mlp_trainer_{round(time.time())}',
-              job_dir=f'mlp_model_{round(time.time())}'):
+    def train(self, credentials, package_uri, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation,
+              dropout_rate_1, dropout_rate_2, dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs,
+              validation_freq, kernel_initial_1, kernel_initial_2, kernel_initial_3,
+              job_id=f'mlp_trainer_{round(time.time())}', job_dir=f'mlp_model_{round(time.time())}'):
         """
 
+        :param credentials:
+        :param package_uri:
         :param dense_neurons_1:
         :param dense_neurons_2:
         :param dense_neurons_3:
@@ -59,37 +63,79 @@ class MLPTrainer:
         self.job_id = job_id
         self.model_dir = job_dir
 
-        # start training job via gcloud
-        logging.info(f'Submitting training job "{self.job_id}", will save to "gs://{self.bucket}/{self.model_dir}"')
-        os.system(f'gcloud config set project {self.project_name}')
-        os.system(f'gcloud ai-platform jobs submit training "{job_id}" \
-        --scale-tier CUSTOM \
-        --master-machine-type "standard_v100" \
-        --staging-bucket "gs://{self.bucket}" \
-        --package-path "../../mlp_trainer/trainer" \
-        --module-name "trainer.train" \
-        --job-dir "gs://{self.bucket}/{job_dir}" \
-        --region "us-central1" \
-        --runtime-version 1.14 \
-        --python-version 3.5 \
-        -- \
-        --table-id="{self.table_id}" \
-        --dense-neurons-1={dense_neurons_1} \
-        --dense-neurons-2={dense_neurons_2} \
-        --dense-neurons-3={dense_neurons_3} \
-        --activation={activation} \
-        --dropout-rate-1={dropout_rate_1} \
-        --dropout-rate-2={dropout_rate_2} \
-        --dropout-rate-3={dropout_rate_3} \
-        --optimizer={optimizer} \
-        --learning-rate={learning_rate} \
-        --chunk-size={chunk_size} \
-        --batch-size={batch_size} \
-        --epochs={epochs} \
-        --validation-freq={validation_freq} \
-        --kernel-initial-1={kernel_initial_1} \
-        --kernel-initial-2={kernel_initial_2} \
-        --kernel-initial-3={kernel_initial_3}')
+        # Create job via python client library
+        project_id = f'projects/{self.project_name}'
+        cloudml = discovery.build(
+            'ml', 'v1',
+            credentials=credentials)
+        training_inputs = {
+            'scaleTier': 'CUSTOM',
+            'masterType': 'standar_v100',
+            'packageUris': [package_uri],
+            'pythonModule': 'trainer.train',
+            'region': 'us-central1',
+            'jobDir': f'gs://{self.bucket}/{job_dir}',
+            'runtimeVersion': '1.14',
+            'pythonVersion': '3.5',
+            'args': [
+                '--table-id', f'{self.table_id}',
+                '--dense-neurons-1', f'{dense_neurons_1}',
+                '--dense-neurons-2', f'{dense_neurons_2}',
+                '--dense-neurons-3', f'{dense_neurons_3}',
+                '--activation', f'{activation}',
+                '--dropout-rate-1', f'{dropout_rate_1}',
+                '--dropout-rate-2', f'{dropout_rate_2}',
+                '--dropout-rate-3', f'{dropout_rate_3}',
+                '--optimizer', f'{optimizer}',
+                '--learning-rate', f'{learning_rate}',
+                '--chunk-size', f'{chunk_size}',
+                '--batch-size', f'{batch_size}',
+                '--epochs', f'{epochs}',
+                '--validation-freq', f'{validation_freq}',
+                '--kernel-initial-1', f'{kernel_initial_1}',
+                '--kernel-initial-2', f'{kernel_initial_2}',
+                '--kernel-initial-3', f'{kernel_initial_3}'
+            ]
+        }
+        job_spec = {
+            'jobId': f'{job_id}',
+            'trainingInput': training_inputs
+        }
+        request = cloudml.projects().jobs().create(body=job_spec,
+                                                   parent=project_id)
+        request.execute()
+
+        # # start training job via gcloud
+        # logging.info(f'Submitting training job "{self.job_id}", will save to "gs://{self.bucket}/{self.model_dir}"')
+        # os.system(f'gcloud config set project {self.project_name}')
+        # os.system(f'gcloud ai-platform jobs submit training "{job_id}" \
+        # --scale-tier CUSTOM \
+        # --master-machine-type "standard_v100" \
+        # --staging-bucket "gs://{self.bucket}" \
+        # --package-path "../../mlp_trainer/trainer" \
+        # --module-name "trainer.train" \
+        # --job-dir "gs://{self.bucket}/{job_dir}" \
+        # --region "us-central1" \
+        # --runtime-version 1.14 \
+        # --python-version 3.5 \
+        # -- \
+        # --table-id="{self.table_id}" \
+        # --dense-neurons-1={dense_neurons_1} \
+        # --dense-neurons-2={dense_neurons_2} \
+        # --dense-neurons-3={dense_neurons_3} \
+        # --activation={activation} \
+        # --dropout-rate-1={dropout_rate_1} \
+        # --dropout-rate-2={dropout_rate_2} \
+        # --dropout-rate-3={dropout_rate_3} \
+        # --optimizer={optimizer} \
+        # --learning-rate={learning_rate} \
+        # --chunk-size={chunk_size} \
+        # --batch-size={batch_size} \
+        # --epochs={epochs} \
+        # --validation-freq={validation_freq} \
+        # --kernel-initial-1={kernel_initial_1} \
+        # --kernel-initial-2={kernel_initial_2} \
+        # --kernel-initial-3={kernel_initial_3}')
 
     def training_status(self):
         """
