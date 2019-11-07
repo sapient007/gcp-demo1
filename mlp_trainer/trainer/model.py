@@ -10,6 +10,7 @@ from talos.model.normalizers import lr_normalizer
 
 from google.cloud import bigquery
 from google.cloud import storage
+from tensorflow.python.client import device_lib
 
 import trainer.data as data
 
@@ -150,6 +151,10 @@ def create_mlp(params):
         1,
         activation='sigmoid'
     ))
+
+    num_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+    if num_gpus > 1:
+        mlp_model = tf.keras.utils.multi_gpu_model(mlp_model, num_gpus)
 
     # compile with tensorflow optimizer.
     mlp_model.compile(

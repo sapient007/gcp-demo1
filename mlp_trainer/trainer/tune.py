@@ -16,7 +16,6 @@ def process_data(table_id, partitions=['train', 'validation', 'test']):
     for partition in partitions:
         datasets[partition] = {}
         rows = data.get_reader_rows(table_id, partition)
-        print(type(rows))
 
         df = pd.DataFrame(rows)
 
