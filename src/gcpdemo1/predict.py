@@ -4,7 +4,7 @@ import pandas as pd
 import googleapiclient.discovery
 from google.cloud import bigquery
 
-import data
+import gcpdemo1.data
 
 
 logging.basicConfig(
