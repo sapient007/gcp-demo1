@@ -8,7 +8,7 @@ from google.cloud import storage
 
 def get_credentials(sa_path):
     """
-
+    TODO
     :param sa_path:
     :return:
     """
@@ -23,7 +23,7 @@ def get_credentials(sa_path):
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name, credentials):
     """
-
+    TODO
     :param bucket_name:
     :param source_file_name:
     :param destination_blob_name:
@@ -45,7 +45,7 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name, credential
 
 def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials):
     """
-
+    TODO
     :param bucket_name:
     :param destination_blob_name:
     :param local_trainer_package_path:
@@ -60,16 +60,3 @@ def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_t
     upload_blob(bucket_name, src_code_filepath, destination_blob_name, credentials)
 
     return f'gs://{bucket_name}/{destination_blob_name}'
-
-
-if __name__ == '__main__':
-    """
-    TODO: testing
-    """
-
-    build_and_upload_trainer_package(
-        bucket_name='gcp-cert-demo-1',
-        destination_blob_name='gcp_module_test/trainer-0.1.tar.gz',
-        local_trainer_package_path='../../mlp_trainer',
-        credentials=get_credentials('../../credentials/ml-sandbox-1-191918-4714b5fd6e92.json')
-    )
