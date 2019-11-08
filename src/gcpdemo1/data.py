@@ -82,14 +82,15 @@ def get_df(reader, session):
     return rows.to_dataframe()
 
 
-def get_reader_rows(table_id, partition_name=None):
+def get_reader_rows(credentials, table_id, partition_name=None):
     """
     TODO: description
+    :param credentials:
     :param table_id:
     :param partition_name:
     :return:
     """
-    client = bigquery_storage_v1beta1.BigQueryStorageClient()
+    client = bigquery_storage_v1beta1.BigQueryStorageClient(credentials=credentials)
     session = get_session(
         client,
         get_table_ref(table_id),
