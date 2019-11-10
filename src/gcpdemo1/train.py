@@ -122,8 +122,8 @@ class MLPTrainer:
             cache_discovery=False)
         request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
         response = request.execute()
-        logging.info('Training status response:')
-        pprint(response)
+
+        return response
 
     def deploy(self, model_name, version_name=f'v_{round(time.time())}'):
         """

@@ -1,73 +1,12 @@
-import os
 import json
 import time
-import glob
 import logging
-import subprocess
 
 from google.oauth2 import service_account
 from googleapiclient import discovery
-from googleapiclient import errors
-
-from google.cloud import storage
 
 
-def download_blob(bucket_name, source_blob_name, destination_file_name, credentials):
-    """
-
-    :param bucket_name:
-    :param source_blob_name:
-    :param destination_file_name:
-    :param credentials:
-    :return:
-    """
-
-    if isinstance(credentials, str):
-        credentials = service_account.Credentials.from_service_account_file(
-            credentials,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-    storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(source_blob_name)
-    blob.download_to_filename(destination_file_name)
-
-
-def upload_blob(bucket_name, source_file_name, destination_blob_name, credentials):
-    """
-
-    :param bucket_name:
-    :param source_file_name:
-    :param destination_blob_name:
-    :param credentials:
-    :return:
-    """
-
-    if isinstance(credentials, str):
-        credentials = service_account.Credentials.from_service_account_file(
-            credentials,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-
-    storage_client = storage.Client(credentials=credentials, project=credentials.project_id)
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_filename(source_file_name)
-
-
-def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials):
-
-    os.chdir(local_trainer_package_path)
-    os.system(f'bash build.sh')  # --dist-dir {local_trainer_package_path}/dist
-
-    src_code_filepath = list(glob.glob('dist/*.tar.gz'))[0]  # {local_trainer_package_path}/
-
-    upload_blob(bucket_name, src_code_filepath, destination_blob_name, credentials)
-
-    return f'gs://{bucket_name}/{destination_blob_name}'
-
-
-class HPTuner:
+class MLPTuner:
     def __init__(self, project_name, job_id_prefix, master_type, job_dir_prefix, table_id):
         """
         TODO: class description
@@ -85,7 +24,7 @@ class HPTuner:
         self.job_dir_prefix = job_dir_prefix
         self.table_id = table_id
 
-    def tune(self, bucket_name, destination_blob_name, local_trainer_package_path, parameters, output_path, sa_path):
+    def tune(self, package_uri, parameters, output_path, credentials):
         """
 
         :param parameters:
@@ -93,19 +32,13 @@ class HPTuner:
         :return:
         """
 
-        credentials = service_account.Credentials.from_service_account_file(
-            sa_path,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-
-        package_uri = build_and_upload_trainer_package(bucket_name, destination_blob_name, local_trainer_package_path, credentials)
+        if isinstance(credentials, str):
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
 
         param_string = json.dumps(parameters).replace('\'', '\"')  # .replace('\"', '\\\"')
-
-        # Run a local test
-        # os.system(f'python ../../mlp_trainer/trainer/tune.py --table_id={self.table_id} \
-        # --output_path={output_path} \
-        # --parameters=\"{param_string}\"')
 
         # Create job via python client library
         project_id = 'projects/{}'.format(self.project_name)
@@ -129,6 +62,21 @@ class HPTuner:
         # Todo - check response
 
         return output_path
+
+    def tuning_status(self):
+        """
+        TODO
+        :return:
+        """
+        logging.info(f'Fetching status of training job "{self.job_id}"')
+        cloudml = discovery.build(
+            'ml', 'v1',
+            credentials=self.credentials,
+            cache_discovery=False)
+        request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
+        response = request.execute()
+
+        return response
 
 
 if __name__ == "__main__":
@@ -205,13 +153,15 @@ if __name__ == "__main__":
     #     "patience": [5]
     # }
 
-    hp_tuner = HPTuner(project_name=project_name,
+    hp_tuner = MLPTuner(project_name=project_name,
                        job_id_prefix=job_id_prefix,
                        master_type=machine_type,
                        job_dir_prefix=job_dir_prefix,
                        table_id=bq_table_id)
 
-    tuning_log_path = hp_tuner.tune(bucket_name, gcs_trainer_package_path, local_trainer_package_path, params,
+
+
+    tuning_log_path = hp_tuner.tune(package_uri, params,
                                     output_path, sa_path)
 
     logging.info('Tuning output located at {}.'.format(tuning_log_path))
