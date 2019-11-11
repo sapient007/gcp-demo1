@@ -1,10 +1,8 @@
 import os
 import glob
-import logging
 
 from google.oauth2 import service_account
 from google.cloud import storage
-from googleapiclient import discovery
 
 
 def get_credentials(sa_path):
@@ -56,7 +54,7 @@ def build_and_upload_trainer_package(bucket_name, destination_blob_name, local_t
 
     os.system(f'bash {local_trainer_package_path}/build.sh')  # --dist-dir {local_trainer_package_path}/dist
 
-    src_code_filepath = list(glob.glob('dist/*.tar.gz'))[0]  # {local_trainer_package_path}/
+    src_code_filepath = list(glob.glob(os.path.join(local_trainer_package_path, 'dist/*.tar.gz')))[0]  # {local_trainer_package_path}/
 
     upload_blob(bucket_name, src_code_filepath, destination_blob_name, credentials)
 

@@ -36,7 +36,8 @@ class MLPTrainer:
     def train(self, package_uri, dense_neurons_1, dense_neurons_2, dense_neurons_3, activation, dropout_rate_1,
               dropout_rate_2, dropout_rate_3, optimizer, learning_rate, chunk_size, batch_size, epochs,
               validation_freq, kernel_initial_1, kernel_initial_2, kernel_initial_3,
-              job_id=f'mlp_trainer_{round(time.time())}', job_dir=f'mlp_model_{round(time.time())}'):
+              job_id=f'mlp_trainer_{time.strftime("%Y%m%d_%H%M%S")}',
+              job_dir=f'mlp_model_{time.strftime("%Y%m%d_%H%M%S")}'):
         """
         TODO
         :param package_uri:
@@ -107,8 +108,14 @@ class MLPTrainer:
         request = cloudml.projects().jobs().create(body=job_spec,
                                                    parent=self.project_id)
         response = request.execute()
-        logging.info('Training job response:')
-        pprint(response)
+
+        # Check response object is valid
+        if response:
+            if response['state']:
+                if response['state'] in 'QUEUED':
+                    return
+
+        logging.error('Could not execute a tuning job. Please see response object for specific error.\n{}'.format(response))
 
     def training_status(self):
         """
@@ -122,6 +129,10 @@ class MLPTrainer:
             cache_discovery=False)
         request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
         response = request.execute()
+
+        if response:
+            if response['state']:
+                return response
 
         return response
 
@@ -163,7 +174,7 @@ class MLPTrainer:
                 body={'name': model_name}
             )
             response = request.execute()
-            logging.info('Model creation response:')
+            # logging.info('Model creation response:')
             pprint(response)
             request = cloudml.projects().models().versions().create(
                 parent=f'{self.project_id}/models/{model_name}',
@@ -174,5 +185,5 @@ class MLPTrainer:
                       'pythonVersion': '3.5'}
             )
             response = request.execute()
-            logging.info('Version creation response:')
+            # logging.info('Version creation response:')
             pprint(response)

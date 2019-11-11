@@ -58,6 +58,7 @@ class Predictor:
             body={'instances': instances}
         ).execute()
         logging.info('Prediction response:')
+
         pprint(response)
 
         return response['predictions']

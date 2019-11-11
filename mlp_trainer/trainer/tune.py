@@ -29,10 +29,9 @@ def process_data(table_id, partitions=['train', 'validation', 'test']):
 
 def tune(table_id, output_path, params):
 
-    # logging.info("Preprocessing dataset {}.".format(table_id))
+    logging.info("Preprocessing dataset {}.".format(table_id))
     X_train, y_train, X_test, y_test, x_val, y_val = process_data(table_id)
 
-    # Run the tuning
     logging.info('Running scan on hyper-parameters')
     scan_results = ta.Scan(x=X_train, y=y_train, x_val=x_val, y_val=y_val,
                            params=params, model=model.train_mlp, experiment_name='HP_Tuning',
@@ -105,7 +104,6 @@ if __name__ == '__main__':
             'patience': [5]
         }
     else:
-        print(args.parameters)
         params = json.loads(args.parameters)
 
     # Create optimizers
