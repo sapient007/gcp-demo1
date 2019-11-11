@@ -21,7 +21,7 @@ Package Manager - Anaconda3
 
 ### Setup Environment
 ```
-conda create -n gcp-demo1 -y python=3.7.4
+conda create --name <env> python=3.7.4
 ```
 
 Activate the virtual environment
@@ -41,9 +41,12 @@ or in some shells
 conda deactivate
 ```
 ### Python Package Installation
-TODO - Package Installation
+```
+pip install -r requirements.txt
+```
 ### Building Source Code
 ```
+cd src
 python setup.py bdist_wheel sdist
 cd dist
 pip install -U <filename.whl>
