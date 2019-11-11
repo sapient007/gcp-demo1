@@ -36,7 +36,7 @@ def tune(table_id, output_path, params):
     logging.info('Running scan on hyper-parameters')
     scan_results = ta.Scan(x=X_train, y=y_train, x_val=x_val, y_val=y_val,
                            params=params, model=model.train_mlp, experiment_name='HP_Tuning',
-                           disable_progress_bar=True)
+                           disable_progress_bar=True, print_params=True)
 
     logging.info('Scanning complete.')
 
