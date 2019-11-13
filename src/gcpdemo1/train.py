@@ -1,14 +1,13 @@
-import logging
 import time
-import json
-from pprint import pprint
+import logging
 
-from google.cloud import storage
 from googleapiclient import discovery
+from google.oauth2 import service_account
 
 
+# Todo - possibly eliminate bucket param and just use job_dir as output location
 class MLPTrainer:
-    def __init__(self, credentials, project_name, bucket, job_id, table_id, trainer_package_uri):
+    def __init__(self, credentials, project_name, bucket, job_id_prefix, job_dir_prefix, table_id, trainer_package_uri):
         """
         TODO
         :param credentials:
@@ -17,12 +16,20 @@ class MLPTrainer:
         :param table_id:
         """
 
+        if isinstance(credentials, str):
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials,
+                scopes=["https://www.googleapis.com/auth/cloud-platform"],
+            )
+
         # object attributes
         self.credentials = credentials
         self.project_name = project_name
-        self.project_id = f'projects/{self.project_name}'
         self.bucket = bucket
-        self.job_id = f'{job_id}_{time.strftime("%Y%m%d_%H%M%S")}'
+        self.job_id_prefix = job_id_prefix
+        self.job_dir_prefix = job_dir_prefix
+        self.job_id = None
+        self.job_dir = None
         self.table_id = table_id
         self.trainer_package_uri = trainer_package_uri
 
@@ -32,11 +39,14 @@ class MLPTrainer:
         :param params:
         :return:
         """
+        suffix = time.strftime("%Y%m%d_%H%M%S")
 
-        # Todo - pass params all together.
-        param_string = json.dumps(params).replace('\'', '\"')
+        self.job_id = f'{self.job_id_prefix}_{suffix}'
+        self.job_dir = f'{self.job_dir_prefix}_{suffix}'
 
         # Create job via python client library
+        project_id = 'projects/{}'.format(self.project_name)
+
         logging.info(f'Starting training job "{self.job_id}"')
         cloudml = discovery.build(
             'ml', 'v1',
@@ -76,89 +86,33 @@ class MLPTrainer:
             'trainingInput': training_inputs
         }
         request = cloudml.projects().jobs().create(body=job_spec,
-                                                   parent=self.project_id)
+                                                   parent=project_id)
         response = request.execute()
 
         # Check response object is valid
         if response:
             if response['state']:
                 if response['state'] in 'QUEUED':
-                    return self.job_id
+                    return self.job_dir
 
         logging.error('Could not execute a tuning job. Please see response object for specific error.\n{}'.format(response))
 
-    def training_status(self):
-        """
-        TODO
-        :return:
-        """
-        logging.info(f'Fetching status of training job "{self.job_id}"')
-        cloudml = discovery.build(
-            'ml', 'v1',
-            credentials=self.credentials,
-            cache_discovery=False)
-        request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
-        response = request.execute()
+    # def training_status(self):
+    #     """
+    #     TODO
+    #     :return:
+    #     """
+    #     logging.info(f'Fetching status of training job "{self.job_id}"')
+    #     cloudml = discovery.build(
+    #         'ml', 'v1',
+    #         credentials=self.credentials,
+    #         cache_discovery=False)
+    #     request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
+    #     response = request.execute()
+    #
+    #     if response:
+    #         if response['state']:
+    #             return response['state']
+    #
+    #     logging.error('Could not execute get job status. Please see response object for specific error.\n{}'.format(response))
 
-        if response:
-            if response['state']:
-                return response['state']
-
-        logging.error('Could not execute get job status. Please see response object for specific error.\n{}'.format(response))
-
-    def deploy(self, model_name, version_name=f'v_{time.strftime("%Y%m%d_%H%M%S")}'):
-        """
-        TODO
-        :param model_name:
-        :param version_name:
-        :return:
-        """
-
-        # model_name = f'{model_name}_{round(time.time())}'
-
-        # check if model training job is complete
-        client = storage.Client(
-            project=self.project_name,
-            credentials=self.credentials
-        )
-        complete = storage.Blob(
-            bucket=client.bucket(f'{self.bucket}'),
-            name=f'{self.job_id}/saved_model.pb'
-        ).exists(client)
-
-        # do not deploy, training incomplete
-        if not complete:
-            logging.error('Unable to deploy model due to incomplete training job, '
-                          'for training status use MLPTrainer.training_status()')
-            return
-
-        # start job via python client
-        gcs_model_path = f'gs://{self.bucket}/{self.job_id}'
-        logging.info(f'Deploying model "{model_name}" version "{version_name}" from "{gcs_model_path}"')
-        cloudml = discovery.build(
-            'ml', 'v1',
-            credentials=self.credentials,
-            cache_discovery=False)
-        request = cloudml.projects().models().create(
-            parent=self.project_id,
-            body={'name': model_name}
-        )
-        response = request.execute()
-        if response:
-            if response['etag'] and response['name']:
-                logging.info('Model created successfully.')
-                request = cloudml.projects().models().versions().create(
-                    parent=f'{self.project_id}/models/{model_name}',
-                    body={'name': version_name,
-                          'deploymentUri': gcs_model_path,
-                          'runtimeVersion': '1.14',
-                          'framework': 'TENSORFLOW',
-                          'pythonVersion': '3.5'}
-                )
-                response = request.execute()
-                if response:
-                    if response['metadata'] and response['name']:
-                        logging.info('Model version created successfully.')
-                        return True
-
-        logging.error(f'Could not deploy model. Please chck response object.\n{response}')

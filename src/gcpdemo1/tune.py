@@ -1,22 +1,25 @@
-import json
 import time
 import logging
-from pprint import pprint
-from google.oauth2 import service_account
+
 from googleapiclient import discovery
+from google.oauth2 import service_account
 
 
-# Todo - instantiate object like train
+# Custom code
+from gcpdemo1 import gcp
+
 
 class MLPTuner:
-    def __init__(self, project_name, credentials, job_id_prefix, master_type, job_dir_prefix, table_id, package_uri):
+    def __init__(self, project_name, credentials, job_id_prefix, master_type, job_dir_prefix, table_id, trainer_package_uri):
         """
-        TODO: class description
+        TODO
         :param project_name:
+        :param credentials:
         :param job_id_prefix:
         :param master_type:
         :param job_dir_prefix:
-        :param training_data_path:
+        :param table_id:
+        :param trainer_package_uri:
         """
 
         if isinstance(credentials, str):
@@ -26,15 +29,15 @@ class MLPTuner:
             )
 
         # object attributes
-        self.project_name = project_name
         self.credentials = credentials
+        self.project_name = project_name
         self.job_id_prefix = job_id_prefix
         self.job_dir_prefix = job_dir_prefix
         self.job_id = None
         self.job_dir = None
         self.master_type = master_type
         self.table_id = table_id
-        self.package_uri = package_uri
+        self.trainer_package_uri = trainer_package_uri
 
     def tune(self, params):
         """
@@ -95,14 +98,13 @@ class MLPTuner:
 
         training_inputs = {'scaleTier': 'CUSTOM',
                            'masterType': self.master_type,
-                           'packageUris': [self.package_uri],
+                           'packageUris': [self.trainer_package_uri],
                            'pythonModule': 'trainer.task',
                            'region': 'us-central1',
                            'jobDir': f'{self.job_dir_prefix}_{time.strftime("%Y%m%d_%H%M%S")}',
                            'runtimeVersion': '1.14',
                            'pythonVersion': '3.5',
                            'args': ['--table_id', self.table_id,
-                                    '--output_path', output_path,
                                     '--task', 'tune',
                                     '--epochs', str(params['epochs']),
                                     '--validation_freq', str(params['validation_freq'])],
@@ -118,29 +120,9 @@ class MLPTuner:
         if response:
             if response['state']:
                 if response['state'] in 'QUEUED':
-                    return output_path
+                    return self.job_dir
 
         logging.error(f'Could not execute a tuning job. Please see response object for specific error.\n{response}')
-
-    def tuning_status(self):
-        """
-        TODO
-        :return:
-        """
-        logging.info(f'Fetching status of training job "{self.job_id}"')
-        cloudml = discovery.build(
-            'ml', 'v1',
-            credentials=self.credentials,
-            cache_discovery=False)
-        request = cloudml.projects().jobs().get(name=f'projects/{self.project_name}/jobs/{self.job_id}')
-
-        response = request.execute()
-
-        if response:
-            if response['state']:
-                return response['state']
-
-        logging.error(f'Could not execute get job status. Please see response object for specific error.\n{response}')
 
 
 if __name__ == "__main__":
@@ -187,9 +169,7 @@ if __name__ == "__main__":
 
     sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
     project_name = 'ml-sandbox-1-191918'
-    bucket_name = 'gcp-cert-demo-1'
-    package_uri = "gs://gcp-cert-demo-1/taxi_mlp_trainer/trainer-0.1.tar.gz"
-    output_path = 'gs://gcp-cert-demo-1/gcpdemo1_mle_tuning/hp_tuning_results.csv'
+    trainer_package_uri = "gs://gcp-cert-demo-1/taxi_mlp_trainer/trainer-0.1.tar.gz"
     job_id_prefix = 'gcpdemo1_mle_tuning'
     job_dir_prefix = 'gs://gcp-cert-demo-1/gcpdemo1_mle_tuning'
     machine_type = 'large_model_v100'  # https://cloud.google.com/ml-engine/docs/machine-types
@@ -216,16 +196,16 @@ if __name__ == "__main__":
         "patience": [5]
     }
 
-    hp_tuner = MLPTuner(project_name=project_name,
+    mlp_tuner = MLPTuner(project_name=project_name,
                         credentials=sa_path,
                         job_id_prefix=job_id_prefix,
                         master_type=machine_type,
                         job_dir_prefix=job_dir_prefix,
                         table_id=bq_table_id,
-                        package_uri=package_uri)
+                        trainer_package_uri=trainer_package_uri)
 
-    tuning_log_path = hp_tuner.tune(params)
+    tuning_log_path = mlp_tuner.tune(params)
 
     logging.info('Tuning output located at {}.'.format(tuning_log_path))
 
-    print(hp_tuner.tuning_status())
+    print(gcp.check_mle_job_status(mlp_tuner))

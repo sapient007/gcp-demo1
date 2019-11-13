@@ -103,21 +103,6 @@ def tune(args):
 
     logging.info(history.history)
 
-    # test_loss = mlp_model.evaluate_generator(
-    #     model.generator_input(
-    #         args.table_id,
-    #         chunk_size=params['chunk_size'],
-    #         batch_size=params['batch_size'],
-    #         partition='validation'
-    #     ),
-    #     steps=50,
-    #     callbacks=None,
-    #     max_queue_size=10,
-    #     workers=1,
-    #     use_multiprocessing=False,
-    #     verbose=0
-    # )
-
     hpt = hypertune.HyperTune()
     hpt.report_hyperparameter_tuning_metric(
         hyperparameter_metric_tag='val_loss',
