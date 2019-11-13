@@ -33,6 +33,7 @@ class MLPTrainer:
         self.table_id = table_id
         self.trainer_package_uri = trainer_package_uri
 
+    # TODO - add patience as param to pass
     def train(self, params):
         """
 

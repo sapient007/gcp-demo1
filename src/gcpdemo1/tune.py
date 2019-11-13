@@ -96,6 +96,7 @@ class MLPTuner:
                 'type': 'CATEGORICAL',
                 'categoricalValues': params[f'kernel_initial_{x}']})
 
+        # Todo - pass rest of params - pateince, batch_size, chunk_size
         training_inputs = {'scaleTier': 'CUSTOM',
                            'masterType': self.master_type,
                            'packageUris': [self.trainer_package_uri],
