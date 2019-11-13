@@ -1,8 +1,10 @@
 import argparse
+import logging
 
 import tensorflow as tf
-
 import trainer.model as model
+
+import hypertune
 
 
 def train_and_evaluate(args):
@@ -53,9 +55,76 @@ def train_and_evaluate(args):
     # save model and history to job directory
     model.save_model(
         mlp_model,
-        bucket=args.bucket,
         job_dir=args.job_dir
     )
+
+
+def tune(args):
+
+    logging.info('In tuning procedure...')
+
+    # choose optimizer from input arguments
+    if args.optimizer.lower() == 'adam':
+        optimizer = tf.keras.optimizers.Adam
+    elif args.optimizer.lower() == 'nadam':
+        optimizer = tf.keras.optimizers.Nadam
+    elif args.optimizer.lower() == 'rmsprop':
+        optimizer = tf.keras.optimizers.RMSprop
+    elif args.optimizer.lower() == 'sgd':
+        optimizer = tf.keras.optimizers.SGD
+    else:
+        optimizer = None
+
+    # format parameters from input arguments
+    params = {
+        'dense_neurons_1': args.dense_neurons_1,
+        'dense_neurons_2': args.dense_neurons_2,
+        'dense_neurons_3': args.dense_neurons_3,
+        'activation': args.activation,
+        'dropout_rate_1': args.dropout_rate_1,
+        'dropout_rate_2': args.dropout_rate_2,
+        'dropout_rate_3': args.dropout_rate_3,
+        'optimizer': optimizer,
+        'learning_rate': args.learning_rate,
+        'chunk_size': args.chunk_size,
+        'batch_size': args.batch_size,
+        'epochs': args.epochs,
+        'validation_freq': args.validation_freq,
+        'kernel_initial_1': args.kernel_initial_1,
+        'kernel_initial_2': args.kernel_initial_2,
+        'kernel_initial_3': args.kernel_initial_3
+    }
+
+    # train model and get history
+    history, mlp_model = model.train_mlp_batches(
+        args.table_id,
+        params=params
+    )
+
+    logging.info(history.history)
+
+    # test_loss = mlp_model.evaluate_generator(
+    #     model.generator_input(
+    #         args.table_id,
+    #         chunk_size=params['chunk_size'],
+    #         batch_size=params['batch_size'],
+    #         partition='validation'
+    #     ),
+    #     steps=50,
+    #     callbacks=None,
+    #     max_queue_size=10,
+    #     workers=1,
+    #     use_multiprocessing=False,
+    #     verbose=0
+    # )
+
+    hpt = hypertune.HyperTune()
+    hpt.report_hyperparameter_tuning_metric(
+        hyperparameter_metric_tag='val_loss',
+        metric_value=float(history.history['val_loss']),
+        global_step=100)
+
+    logging.info('Reported HP metric...')
 
 
 if __name__ == '__main__':
@@ -69,10 +138,10 @@ if __name__ == '__main__':
         help='BigQuery table containing dataset',
         default='finaltaxi_encoded_sampled_small')
     parser.add_argument(
-        '--bucket',
+        '--task',
         type=str,
-        help='Bucket for writing files',
-        default='gcp-cert-demo-1')
+        help='train or tune',
+        default='train')
     parser.add_argument(
         '--job-dir',
         type=str,
@@ -142,7 +211,7 @@ if __name__ == '__main__':
         '--validation_freq',
         type=int,
         help='Validation frequency, default=5',
-        default=5)
+        default=1)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,
@@ -159,4 +228,10 @@ if __name__ == '__main__':
         help='Kernel initializer for third model layer, default=normal',
         default='normal')
     args, _ = parser.parse_known_args()
-    train_and_evaluate(args)
+
+    if args.task in 'train':
+        train_and_evaluate(args)
+    elif args.task in 'tune':
+        tune(args)
+    else:
+        logging.error('--task must be \'train\' or \'tune\'')

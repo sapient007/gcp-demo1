@@ -4,3 +4,4 @@ numpy>=1.17.2,<2.0
 pandas==0.19.2,<1.0
 google-cloud-bigquery-storage[pandas,fastavro]==0.7.0
 gcsfs==0.3.1
+cloudml-hypertune==0.1.0.dev5

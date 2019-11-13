@@ -1,13 +1,15 @@
 import json
 import time
 import logging
-
+from pprint import pprint
 from google.oauth2 import service_account
 from googleapiclient import discovery
 
 
+# Todo - instantiate object like train
+
 class MLPTuner:
-    def __init__(self, project_name, credentials, job_id_prefix, master_type, job_dir_prefix, table_id):
+    def __init__(self, project_name, credentials, job_id_prefix, master_type, job_dir_prefix, table_id, package_uri):
         """
         TODO: class description
         :param project_name:
@@ -27,37 +29,85 @@ class MLPTuner:
         self.project_name = project_name
         self.credentials = credentials
         self.job_id_prefix = job_id_prefix
-        self.master_type = master_type
         self.job_dir_prefix = job_dir_prefix
         self.job_id = None
+        self.job_dir = None
+        self.master_type = master_type
         self.table_id = table_id
+        self.package_uri = package_uri
 
-    def tune(self, package_uri, parameters, output_path):
+    def tune(self, params):
         """
 
-        :param parameters:
-        :param output_path:
+        :param params:
         :return:
         """
 
-        param_string = json.dumps(parameters).replace('\'', '\"')  # .replace('\"', '\\\"')
+        suffix = time.strftime("%Y%m%d_%H%M%S")
 
-        self.job_id = f'{self.job_id_prefix}_{time.strftime("%Y%m%d_%H%M%S")}'
+        self.job_id = f'{self.job_id_prefix}_{suffix}'
+        self.job_dir = f'{self.job_dir_prefix}_{suffix}'
 
         # Create job via python client library
         project_id = 'projects/{}'.format(self.project_name)
         cloudml = discovery.build('ml', 'v1', credentials=self.credentials)
+
+        hyperparams = {
+            'goal': 'MINIMIZE',
+            'hyperparameterMetricTag': 'val_loss',
+            'maxTrials': 2,
+            'maxParallelTrials': 1,
+            'enableTrialEarlyStopping': True,
+            'params': []}
+
+        for x in range(1, 4):
+            hyperparams['params'].append({
+                'parameterName': f'dense-neurons-{x}',
+                'type': 'DISCRETE',
+                'discreteValues': params[f'dense_neurons_{x}']})
+
+        hyperparams['params'].append({
+            'parameterName': 'activation',
+            'type': 'CATEGORICAL',
+            'categoricalValues': params['activation']})
+
+        for x in range(1, 4):
+            hyperparams['params'].append({
+                'parameterName': f'dropout-rate-{x}',
+                'type': 'DISCRETE',
+                'discreteValues': params[f'dropout_rate_{x}']})
+
+        hyperparams['params'].append({
+            'parameterName': 'optimizer',
+            'type': 'CATEGORICAL',
+            'categoricalValues': params['optimizer']})
+
+        hyperparams['params'].append({
+            'parameterName': 'learning-rate',
+            'type': 'DISCRETE',
+            'discreteValues': params['learning_rate']})
+
+        for x in range(1, 4):
+            hyperparams['params'].append({
+                'parameterName': f'kernel-initial-{x}',
+                'type': 'CATEGORICAL',
+                'categoricalValues': params[f'kernel_initial_{x}']})
+
         training_inputs = {'scaleTier': 'CUSTOM',
                            'masterType': self.master_type,
-                           'packageUris': [package_uri],
-                           'pythonModule': 'trainer.tune',
+                           'packageUris': [self.package_uri],
+                           'pythonModule': 'trainer.task',
                            'region': 'us-central1',
                            'jobDir': f'{self.job_dir_prefix}_{time.strftime("%Y%m%d_%H%M%S")}',
                            'runtimeVersion': '1.14',
                            'pythonVersion': '3.5',
                            'args': ['--table_id', self.table_id,
                                     '--output_path', output_path,
-                                    '--parameters', param_string]}
+                                    '--task', 'tune',
+                                    '--epochs', str(params['epochs']),
+                                    '--validation_freq', str(params['validation_freq'])],
+                           'hyperparameters': hyperparams}
+
         job_spec = {'jobId': self.job_id,
                     'trainingInput': training_inputs}
         request = cloudml.projects().jobs().create(body=job_spec,
@@ -70,7 +120,7 @@ class MLPTuner:
                 if response['state'] in 'QUEUED':
                     return output_path
 
-        logging.error('Could not execute a tuning job. Please see response object for specific error.\n{}'.format(response))
+        logging.error(f'Could not execute a tuning job. Please see response object for specific error.\n{response}')
 
     def tuning_status(self):
         """
@@ -88,9 +138,9 @@ class MLPTuner:
 
         if response:
             if response['state']:
-                return response
+                return response['state']
 
-        logging.error('Could not execute get job status. Please see response object for specific error.\n{}'.format(response))
+        logging.error(f'Could not execute get job status. Please see response object for specific error.\n{response}')
 
 
 if __name__ == "__main__":
@@ -105,17 +155,6 @@ if __name__ == "__main__":
             logging.FileHandler('train_testing.log'),
             logging.StreamHandler()
         ])
-
-    sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
-    project_name = 'ml-sandbox-1-191918'
-    bucket_name = 'gcp-cert-demo-1'
-    local_trainer_package_path = '../../mlp_trainer'
-    gcs_trainer_package_path = 'hp_tune_test/trainer-0.1.tar.gz'  # do not include bucket name
-    output_path = 'gs://gcp-cert-demo-1/hp_tune_test/hp_tuning_results.csv'
-    job_id_prefix = 'gcpdemo1_mlp_tuning'
-    job_dir_prefix = 'gs://gcp-cert-demo-1/hp_tune_test'
-    machine_type = 'large_model_v100'  # https://cloud.google.com/ml-engine/docs/machine-types
-    bq_table_id = 'finaltaxi_encoded_sampled_small'
 
     # Optimizer parameters:
     #      "Adam"    for tf.keras.optimizers.Adam
@@ -146,8 +185,18 @@ if __name__ == "__main__":
     #     "patience": [20]
     # }
 
+    sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
+    project_name = 'ml-sandbox-1-191918'
+    bucket_name = 'gcp-cert-demo-1'
+    package_uri = "gs://gcp-cert-demo-1/taxi_mlp_trainer/trainer-0.1.tar.gz"
+    output_path = 'gs://gcp-cert-demo-1/gcpdemo1_mle_tuning/hp_tuning_results.csv'
+    job_id_prefix = 'gcpdemo1_mle_tuning'
+    job_dir_prefix = 'gs://gcp-cert-demo-1/gcpdemo1_mle_tuning'
+    machine_type = 'large_model_v100'  # https://cloud.google.com/ml-engine/docs/machine-types
+    bq_table_id = 'finaltaxi_encoded_sampled_small'
+
     params = {
-        "dense_neurons_1": [64, 9],
+        "dense_neurons_1": [9, 64],
         "dense_neurons_2": [32],
         "dense_neurons_3": [8],
         "activation": ["relu"],
@@ -162,8 +211,8 @@ if __name__ == "__main__":
 
         "batch_size": [1024],
         "chunk_size": [500000],
-        "epochs": [40],
-        "validation_freq": [5],
+        "epochs": 3,
+        "validation_freq": 1,
         "patience": [5]
     }
 
@@ -172,12 +221,10 @@ if __name__ == "__main__":
                         job_id_prefix=job_id_prefix,
                         master_type=machine_type,
                         job_dir_prefix=job_dir_prefix,
-                        table_id=bq_table_id)
+                        table_id=bq_table_id,
+                        package_uri=package_uri)
 
-    package_uri = "gs://gcp-cert-demo-1/taxi_mlp_trainer/trainer-0.1.tar.gz"
-
-    tuning_log_path = hp_tuner.tune(package_uri, params,
-                                    output_path)
+    tuning_log_path = hp_tuner.tune(params)
 
     logging.info('Tuning output located at {}.'.format(tuning_log_path))
 
