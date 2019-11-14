@@ -96,6 +96,7 @@ def generator_input(table_id, chunk_size, batch_size, partition):
                 df_rows = [row]
                 df_len = df.shape[0]
                 for jdx in range(0, df_len, batch_size):
+
                     yield (
                         df.iloc[jdx:min(df_len, jdx + batch_size), 1:].values,
                         df.iloc[jdx:min(df_len, jdx + batch_size), 0].values
