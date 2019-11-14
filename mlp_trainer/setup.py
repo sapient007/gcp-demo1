@@ -6,7 +6,8 @@ REQUIRED_PACKAGES = [
     'urllib3',
     'google-cloud-bigquery-storage[pandas,fastavro]==0.7.0',
     'gcsfs==0.3.1',
-    'cloudml-hypertune==0.1.0.dev5'
+    'cloudml-hypertune==0.1.0.dev5',
+    'talos==0.6.3'
 ]
 
 setup(

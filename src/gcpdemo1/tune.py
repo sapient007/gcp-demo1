@@ -10,7 +10,7 @@ from gcpdemo1 import gcp
 
 
 class MLPTuner:
-    def __init__(self, project_name, credentials, job_id_prefix, master_type, job_dir_prefix, table_id, trainer_package_uri):
+    def __init__(self, project_name, credentials, job_id_prefix, master_type, master_gpu_type: str, job_dir_prefix, table_id, trainer_package_uri):
         """
         TODO
         :param project_name:
@@ -36,6 +36,7 @@ class MLPTuner:
         self.job_id = None
         self.job_dir = None
         self.master_type = master_type
+        self.master_gpu_type = master_gpu_type
         self.table_id = table_id
         self.trainer_package_uri = trainer_package_uri
 
@@ -99,9 +100,15 @@ class MLPTuner:
         # Todo - pass rest of params - pateince, batch_size, chunk_size
         training_inputs = {'scaleTier': 'CUSTOM',
                            'masterType': self.master_type,
+                           'masterConfig': {
+                               "acceleratorConfig": {
+                                    "count": 2,
+                                    "type": self.master_gpu_type
+                               }
+                           },
                            'packageUris': [self.trainer_package_uri],
                            'pythonModule': 'trainer.task',
-                           'region': 'us-central1',
+                           'region': 'us-east1',
                            'jobDir': f'{self.job_dir_prefix}_{time.strftime("%Y%m%d_%H%M%S")}',
                            'runtimeVersion': '1.14',
                            'pythonVersion': '3.5',
@@ -168,12 +175,13 @@ if __name__ == "__main__":
     #     "patience": [20]
     # }
 
-    sa_path = '../../credentials/ml-sandbox-1-191918-384dcea092ff.json'
+    sa_path = '/mnt/c/Users/erik.lincoln/Downloads/ml-sandbox-1-191918-4361247d7c4d.json'
     project_name = 'ml-sandbox-1-191918'
     trainer_package_uri = "gs://gcp-cert-demo-1/taxi_mlp_trainer/trainer-0.1.tar.gz"
     job_id_prefix = 'gcpdemo1_mle_tuning'
     job_dir_prefix = 'gs://gcp-cert-demo-1/gcpdemo1_mle_tuning'
-    machine_type = 'large_model_v100'  # https://cloud.google.com/ml-engine/docs/machine-types
+    machine_type = 'n1-highmem-16'  # https://cloud.google.com/ml-engine/docs/machine-types
+    gpu_type = 'NVIDIA_TESLA_K80'
     bq_table_id = 'finaltaxi_encoded_sampled_small'
 
     params = {
@@ -201,6 +209,7 @@ if __name__ == "__main__":
                         credentials=sa_path,
                         job_id_prefix=job_id_prefix,
                         master_type=machine_type,
+                        master_gpu_type=gpu_type,
                         job_dir_prefix=job_dir_prefix,
                         table_id=bq_table_id,
                         trainer_package_uri=trainer_package_uri)
