@@ -1,7 +1,10 @@
 import os
 import math
 import logging
+import datetime
 import pandas as pd
+import numpy as np
+from typing import Tuple, Iterator
 
 import tensorflow as tf
 import tensorflow.keras.backend as K
@@ -77,7 +80,7 @@ def get_sample_count(table_id, partition):
     return list(results)[0][0]
 
 
-def generator_input(table_id, chunk_size, batch_size, partition):
+def generator_input(table_id: str, chunk_size, batch_size: int, partition: str) -> Iterator[Tuple[np.array, np.array]]:
     """
     Produce features and labels needed by keras fit_generator
     :param table_id:
@@ -86,22 +89,27 @@ def generator_input(table_id, chunk_size, batch_size, partition):
     :param partition:
     :return:
     """
-
-    rows = data.get_reader_rows(table_id, partition)
-    df_rows = []
-    for idx, row in enumerate(rows):
-        if (idx % chunk_size == 0) and (idx != 0):
-            df = pd.DataFrame(df_rows)
-            df_rows = [row]
-            df_len = df.shape[0]
-            for jdx in range(0, df_len, batch_size):
-
+    while True:
+        session, readers = data.get_data_partition_sharded(table_id, partition)
+        rows = readers[0].rows(session)
+        df_rows = []
+        for i, row in enumerate(rows):
+            if(i % batch_size == 0) and (i != 0):
+                df = pd.DataFrame(df_rows)
+                df_rows = [row]
                 yield (
-                    df.iloc[jdx:min(df_len, jdx + batch_size), 1:].values,
-                    df.iloc[jdx:min(df_len, jdx + batch_size), 0].values
+                    df.drop(['cash', ], axis=1).values,
+                    df['cash'].values   
                 )
-        else:
-            df_rows.append(row)
+            else:
+                df_rows.append(row)
+
+        df = pd.DataFrame(df_rows)
+        yield (
+            df.drop(['cash', ], axis=1).values,
+            df['cash'].values   
+        )
+
 
 
 def create_mlp(params):
@@ -114,44 +122,47 @@ def create_mlp(params):
     # reset the tensorflow backend session.
     K.clear_session()
 
-    # define the model with variable hyperparameters.
-    mlp_model = tf.keras.models.Sequential()
-    mlp_model.add(tf.keras.layers.Dense(
-        int(params['dense_neurons_1']),
-        input_dim=25,
-        kernel_initializer=params['kernel_initial_1']
-    ))
-    mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
-    mlp_model.add(tf.keras.layers.Activation(activation=params['activation']))
-    mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
-    mlp_model.add(tf.keras.layers.Dense(
-        int(params['dense_neurons_2']),
-        kernel_initializer=params['kernel_initial_2'],
-        activation=params['activation']
-    ))
-    mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
-    mlp_model.add(tf.keras.layers.Dense(
-        int(params['dense_neurons_3']),
-        kernel_initializer=params['kernel_initial_3'],
-        activation=params['activation']
-    ))
-    mlp_model.add(tf.keras.layers.Dense(
-        1,
-        activation='sigmoid'
-    ))
+    mirrored_strategy = tf.distribute.MirroredStrategy()
+    with mirrored_strategy.scope():
 
-    num_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
-    if num_gpus > 1:
-        mlp_model = tf.keras.utils.multi_gpu_model(mlp_model, num_gpus)
+        # define the model with variable hyperparameters.
+        mlp_model = tf.keras.models.Sequential()
+        mlp_model.add(tf.keras.layers.Dense(
+            int(params['dense_neurons_1']),
+            input_dim=25,
+            kernel_initializer=params['kernel_initial_1']
+        ))
+        mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
+        mlp_model.add(tf.keras.layers.Activation(activation=params['activation']))
+        mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_1'])))
+        mlp_model.add(tf.keras.layers.Dense(
+            int(params['dense_neurons_2']),
+            kernel_initializer=params['kernel_initial_2'],
+            activation=params['activation']
+        ))
+        mlp_model.add(tf.keras.layers.Dropout(float(params['dropout_rate_2'])))
+        mlp_model.add(tf.keras.layers.Dense(
+            int(params['dense_neurons_3']),
+            kernel_initializer=params['kernel_initial_3'],
+            activation=params['activation']
+        ))
+        mlp_model.add(tf.keras.layers.Dense(
+            1,
+            activation='sigmoid'
+        ))
 
-    # compile with tensorflow optimizer.
-    mlp_model.compile(
-        optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
-        loss='binary_crossentropy',
-        metrics=['accuracy', f1_metric]
-    )
+        num_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+        if num_gpus > 1:
+            mlp_model = tf.keras.utils.multi_gpu_model(mlp_model, num_gpus)
 
-    return mlp_model
+        # compile with tensorflow optimizer.
+        mlp_model.compile(
+            optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
+            loss='binary_crossentropy',
+            metrics=['accuracy', f1_metric]
+        )
+
+        return mlp_model
 
 
 def train_mlp_batches(table_id, params):
@@ -165,11 +176,14 @@ def train_mlp_batches(table_id, params):
     # create model and define early stopping
     mlp_model = create_mlp(params)
     es = tf.keras.callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor='loss',
         mode='min',
         verbose=0,
         patience=50
     )
+
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
     # train the model on TPU with fixed batch size.
     history = mlp_model.fit_generator(
@@ -185,7 +199,7 @@ def train_mlp_batches(table_id, params):
         ) / params['batch_size']),
         epochs=params['epochs'],
         verbose=2,
-        callbacks=[es],
+        callbacks=[es, tensorboard_callback],
         validation_data=generator_input(
             table_id,
             chunk_size=params['chunk_size'],
@@ -215,3 +229,4 @@ def save_model(mlp_model, job_dir):
         mlp_model,
         'model')
     os.system('gsutil -m cp -r model {}'.format(job_dir))
+    os.system('gsutil -m cp -r logs {}'.format(job_dir))

@@ -55,10 +55,16 @@ class MLPTrainer:
             cache_discovery=False)
         training_inputs = {
             'scaleTier': 'CUSTOM',
-            'masterType': 'standard_v100',
+            'masterType': 'n1-highmem-16',
+            'masterConfig': {
+                "acceleratorConfig": {
+                    "c": 2,
+                    "type": "NVIDIA_TESLA_K80"
+                }
+            },
             'packageUris': [f'gs://{self.bucket}/{self.trainer_package_uri}'],
             'pythonModule': 'trainer.train',
-            'region': 'us-central1',
+            'region': 'us-east1',
             'jobDir': f'gs://{self.bucket}/{self.job_id}',
             'runtimeVersion': '1.14',
             'pythonVersion': '3.5',

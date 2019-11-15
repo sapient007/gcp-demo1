@@ -58,7 +58,7 @@ class MLPTuner:
 
         hyperparams = {
             'goal': 'MINIMIZE',
-            'hyperparameterMetricTag': 'val_loss',
+            'hyperparameterMetricTag': 'loss',
             'maxTrials': 2,
             'maxParallelTrials': 1,
             'enableTrialEarlyStopping': True,

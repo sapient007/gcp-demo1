@@ -105,8 +105,8 @@ def tune(args):
 
     hpt = hypertune.HyperTune()
     hpt.report_hyperparameter_tuning_metric(
-        hyperparameter_metric_tag='val_loss',
-        metric_value=float(history.history['val_loss']),
+        hyperparameter_metric_tag='loss',
+        metric_value=float(history.history['loss'][0]),
         global_step=100)
 
     logging.info('Reported HP metric...')

@@ -1,7 +1,8 @@
+from typing import List, Tuple
 from google.cloud import bigquery_storage_v1beta1
 
 
-def get_table_ref(table_id):
+def get_table_ref(table_id: str) -> bigquery_storage_v1beta1.types.TableReference:
     """Sets up the table spec configuration
 
     @TODO: Should parameterize
@@ -50,8 +51,11 @@ def get_read_options(partition_name=None):
     return read_options
 
 
-def get_session(client, table_ref, read_options, parent):
-    """Creates the Bigquery storage client"""
+def get_session(client: bigquery_storage_v1beta1.BigQueryStorageClient,
+                table_ref: bigquery_storage_v1beta1.types.TableReference,
+                read_options: bigquery_storage_v1beta1.types.TableReadOptions,
+                parent: str,
+                streams: int) -> bigquery_storage_v1beta1.types.ReadSession:
     return client.create_read_session(
         table_ref,
         parent,
@@ -60,20 +64,33 @@ def get_session(client, table_ref, read_options, parent):
         # This API can also deliver data serialized in Apache Arrow format.
         # This example leverages Apache Avro.
         format_=bigquery_storage_v1beta1.enums.DataFormat.AVRO,
+        requested_streams=streams,
         # We use a LIQUID strategy in this example because we only read from a
         # single stream. Consider BALANCED if you're consuming multiple streams
         # concurrently and want more consistent stream sizes.
-        sharding_strategy=bigquery_storage_v1beta1.enums.ShardingStrategy.LIQUID,
+        sharding_strategy=(bigquery_storage_v1beta1.enums.ShardingStrategy.BALANCED),
     )
 
 
-def get_reader(client, session):
-    """Creates the session reader to fetch data. Multiple readers can 
-    be created to parallelize read in"""
-    return client.read_rows(
-        bigquery_storage_v1beta1.types.StreamPosition(stream=session.streams[0]),
-        timeout=10000
-    )
+def get_reader(client: bigquery_storage_v1beta1.BigQueryStorageClient,
+               stream: bigquery_storage_v1beta1.types.Stream) -> bigquery_storage_v1beta1.reader.ReadRowsStream:
+    return client.read_rows(bigquery_storage_v1beta1.types.StreamPosition(stream=stream), timeout=10000)
+
+
+def get_data_partition_sharded(table_id: str, partition_name: str, shards=1) -> Tuple[bigquery_storage_v1beta1.types.ReadSession, List[bigquery_storage_v1beta1.types.ReadSession]]:
+    client = bigquery_storage_v1beta1.BigQueryStorageClient()
+    tableref = get_table_ref(table_id)
+    session = get_session(client,
+                          tableref,
+                          get_read_options(partition_name),
+                          "projects/{}".format(tableref.project_id),
+                          shards)
+    readers = []
+    for stream in session.streams:
+        reader = get_reader(client, stream)
+        readers.append(reader)
+
+    return session, readers
 
 
 def get_df(reader, session):
@@ -92,7 +109,7 @@ def get_data(table_id, partition_name=None):
         pandas.DataFrame: Pandas DataFrame
     """
     client = bigquery_storage_v1beta1.BigQueryStorageClient()
-    session = get_session(client, get_table_ref(table_id), get_read_options(partition_name), "projects/{}".format(get_table_ref(table_id).project_id))
+    session = get_session(client, get_table_ref(table_id), get_read_options(partition_name), "projects/{}".format(get_table_ref(table_id).project_id), streams=1)
     reader = get_reader(client, session)
     df = get_df(reader, session)
     return df
@@ -110,7 +127,8 @@ def get_reader_rows(table_id, partition_name=None):
         client,
         get_table_ref(table_id),
         get_read_options(partition_name),
-        "projects/{}".format(get_table_ref(table_id).project_id)
+        "projects/{}".format(get_table_ref(table_id).project_id),
+        streams=1
     )
     reader = get_reader(client, session)
     rows = reader.rows(session)
