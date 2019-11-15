@@ -1,5 +1,7 @@
 import argparse
 import logging
+import os
+import json
 
 import tensorflow as tf
 import trainer.model as model
@@ -45,6 +47,33 @@ def train_and_evaluate(args):
         'kernel_initial_2': args.kernel_initial_2,
         'kernel_initial_3': args.kernel_initial_3
     }
+
+    """Parse TF_CONFIG to cluster_spec and call run() method.
+
+    TF_CONFIG environment variable is available when running using
+    gcloud either locally or on cloud. It has all the information required
+    to create a ClusterSpec which is important for running distributed code.
+
+    Args:
+        args (args): Input arguments.
+    """
+
+    tf_config = os.environ.get('TF_CONFIG')
+    print(tf_config)
+    # If TF_CONFIG is not available run local.
+    if tf_config:
+        tf_config_json = json.loads(tf_config)
+        cluster = tf_config_json.get('cluster')
+        job_name = tf_config_json.get('task', {}).get('type')
+        task_index = tf_config_json.get('task', {}).get('index')
+
+        tf_config_json["cluster"]["chief"] = cluster.get("master")
+        del tf_config_json["cluster"]["master"]
+
+        # Map ML Engine master to chief for TF
+        if job_name == "master":
+            tf_config_json["task"]["type"] = "chief"
+            os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
 
     # train model and get history
     history, mlp_model = model.train_mlp_batches(
