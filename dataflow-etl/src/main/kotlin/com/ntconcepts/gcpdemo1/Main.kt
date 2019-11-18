@@ -5,6 +5,7 @@ import com.ntconcepts.gcpdemo1.accumulators.StdFn
 import com.ntconcepts.gcpdemo1.models.TaxiRideL1
 import com.ntconcepts.gcpdemo1.models.TaxiTripOutput
 import com.ntconcepts.gcpdemo1.transforms.*
+import com.ntconcepts.gcpdemo1.utils.AvroNamingFn
 import com.ntconcepts.gcpdemo1.utils.CSVNamingFn
 import org.apache.avro.generic.GenericRecord
 import org.apache.beam.sdk.Pipeline
@@ -129,8 +130,7 @@ fun getPipeline(options: Demo1Options): Pipeline {
             )
                 .withoutValidation()
                 .from(options.inputTableSpec)
-//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 10000")
-//                .usingStandardSql()
+//                .fromQuery("SELECT * FROM `bigquery-public-data.chicago_taxi_trips.taxi_trips` where pickup_latitude is not null LIMIT 5000").usingStandardSql()
         )
             .apply(
                 "Filter rows",
@@ -153,10 +153,10 @@ fun getPipeline(options: Demo1Options): Pipeline {
 
     val centeredResults = tripsPCollection
         .apply(
-        "Map to KVs",
-        MapElements.into(
-            kvDescriptor
-        ).via(ConvertToKVFn())
+            "Map to KVs",
+            MapElements.into(
+                kvDescriptor
+            ).via(ConvertToKVFn())
         )
         .apply(
             "Center lat/longs",
@@ -286,8 +286,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
             "Sample data",
             ParDo.of(SampleDataFn(options.sampleSize))
         )
-    writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
-//    writeAvro(options, tripOutputs)
+//    writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
+    writeAvro(options, tripOutputs)
 //    writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 
     return p
@@ -400,16 +400,33 @@ fun writeCSV(
 
 fun writeAvro(options: Demo1Options, p: PCollection<KV<TaxiRideL1, TaxiTripOutput>>) {
     p.apply(
-        "Map to GenericRecord",
-        MapElements.into(
-            TypeDescriptor.of(GenericRecord::class.java)
-        ).via(OutputTaxiTripOutputFn())
+        "Map to TaxiTripOutput",
+        MapElements.into(TypeDescriptor.of(TaxiTripOutput::class.java))
+            .via(SerializableFunction<KV<TaxiRideL1, TaxiTripOutput>, TaxiTripOutput> {
+                it.value
+            })
     )
-        .setCoder(AvroCoder.of(TaxiTripOutput.AvroSchemaGetter.schema(daysOfWeekList, monthsList)))
         .apply(
             "Write Avro",
-            AvroIO.writeGenericRecords(TaxiTripOutput.AvroSchemaGetter.schema(daysOfWeekList, monthsList))
+            FileIO.writeDynamic<String, TaxiTripOutput>()
+                .by {
+                    it.ml_partition
+                }
+                .via(Contextful.fn<TaxiTripOutput, GenericRecord>(
+                    SerializableFunction {
+                        it.toGenericRecord()
+                    }
+                ),
+                    AvroIO.sink(TaxiTripOutput.AvroSchemaGetter.schema(daysOfWeekList, monthsList))
+                )
                 .to(options.avroOutputPath)
-                .withSuffix(".avro")
+                .withDestinationCoder(StringUtf8Coder.of())
+                .withNaming(
+                    Contextful.fn(
+                        SerializableFunction {
+                            AvroNamingFn(it)
+                        })
+                )
         )
+
 }
