@@ -1,24 +1,24 @@
 trainingInput:
   scaleTier: CUSTOM
   masterType: n1-standard-8
-  # masterConfig:
-  #   acceleratorConfig:
-  #     count: 4
-  #     type: NVIDIA_TESLA_K80
-  workerType: n1-standard-4
-  workerCount: 2
-  workerConfig:
+  masterConfig:
     acceleratorConfig:
-      count: 1
-      type: NVIDIA_TESLA_K80
+      count: 4
+      type: NVIDIA_TESLA_T4
+  # workerType: n1-standard-4
+  # workerCount: 2
+  # workerConfig:
+  #   acceleratorConfig:
+  #     count: 1
+  #     type: NVIDIA_TESLA_K80
   # parameterServerType: n1-standard-4
-  # parameterServerCount: 1
+  # parameterServerCount: 2
   pythonModule: trainer.task
   runtimeVersion: "1.14"
   pythonVersion: "3.5"
   args:
     - --task=train
-    - --table-id=finaltaxi_encoded_sampled_small
+    - --table-id=finaltaxi_encoded_sampled
     - --dense-neurons-1=64
     - --dense-neurons-2=32
     - --dense-neurons-3=8
@@ -29,9 +29,9 @@ trainingInput:
     - --optimizer=adam
     - --learning-rate=0.1
     - --chunk-size=50000
-    - --batch-size=128
+    - --batch-size=256
     - --epochs=3
-    - --validation-freq=5
+    - --validation_freq=5
     - --kernel-initial-1=normal
     - --kernel-initial-2=normal
     - --kernel-initial-3=normal

@@ -187,8 +187,8 @@ RUN set -ex; \
 
 WORKDIR /opt/gcp-demo1/mlp-training
 # Do this first to cache this step
-COPY mlp-training/requirements.txt /opt/gcp-demo1/mlp-trainingrequirements.txt
+COPY requirements.txt /opt/gcp-demo1/mlp-trainingrequirements.txt
 RUN pip install -r requirements.txt
-COPY mlp-training /opt/gcp-demo1/mlp-training
+COPY ./ /opt/gcp-demo1/mlp-training
 
 ENTRYPOINT ["python", "-m", "trainer.task"]

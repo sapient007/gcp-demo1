@@ -1,6 +1,8 @@
 import os
 import math
 import logging
+import pickle
+import codecs
 import datetime
 import pandas as pd
 import numpy as np
@@ -13,6 +15,7 @@ from tensorflow.python.client import device_lib
 from talos.model.normalizers import lr_normalizer
 
 from google.cloud import bigquery
+from google.cloud import bigquery_storage_v1beta1
 
 import trainer.data as data
 
@@ -80,7 +83,8 @@ def get_sample_count(table_id, partition):
     return list(results)[0][0]
 
 
-def generator_input(table_id: str, chunk_size, batch_size: int, partition: str) -> Iterator[Tuple[np.array, np.array]]:
+def generator_input(table_id: bytes, chunk_size, batch_size: int, partition: bytes):
+# -> Iterator[Tuple[np.array, np.array]]:
     """
     Produce features and labels needed by keras fit_generator
     :param table_id:
@@ -89,17 +93,44 @@ def generator_input(table_id: str, chunk_size, batch_size: int, partition: str) 
     :param partition:
     :return:
     """
-    while True:
-        session, readers = data.get_data_partition_sharded(table_id, partition)
-        rows = readers[0].rows(session)
-        df_rows = []
-        for i, row in enumerate(rows):
-            df = pd.DataFrame([row])
-            yield (
-                df.drop(['cash', ], axis=1).values,
-                df['cash'].values   
-            )
-
+    # while True:
+    session, readers = data.get_data_partition_sharded(table_id.decode("utf-8"), partition.decode("utf-8"))
+    rows = readers[0].rows(session)
+    for row in rows:
+        # df = pd.DataFrame([row])
+        yield (
+            # df.drop(['cash', ], axis=1).values,
+            # df['cash'].values 
+            [
+                row.get("year"),
+                row.get("start_time_norm_midnight"),
+                row.get("start_time_norm_noon"),
+                row.get("pickup_lat_std"),
+                row.get("pickup_long_std"),
+                row.get("pickup_lat_centered"),
+                row.get("pickup_long_centered"),
+                row.get("day_of_week_MONDAY"),
+                row.get("day_of_week_TUESDAY"),
+                row.get("day_of_week_WEDNESDAY"),
+                row.get("day_of_week_THURSDAY"),
+                row.get("day_of_week_FRIDAY"),
+                row.get("day_of_week_SATURDAY"),
+                row.get("day_of_week_SUNDAY"),
+                row.get("month_JANUARY"),
+                row.get("month_FEBRUARY"),
+                row.get("month_MARCH"),
+                row.get("month_APRIL"),
+                row.get("month_MAY"),
+                row.get("month_JUNE"),
+                row.get("month_JULY"),
+                row.get("month_AUGUST"),
+                row.get("month_SEPTEMBER"),
+                row.get("month_OCTOBER"),
+                row.get("month_NOVEMBER"),
+                row.get("month_DECEMBER"),
+            ],
+            row.get("cash")
+        )
 
         #     if(i % batch_size == 0) and (i != 0):
         #         df = pd.DataFrame(df_rows)
@@ -133,7 +164,7 @@ def create_mlp(params):
     mlp_model = tf.keras.models.Sequential()
     mlp_model.add(tf.keras.layers.Dense(
         int(params['dense_neurons_1']),
-        input_dim=25,
+        input_dim=26,
         kernel_initializer=params['kernel_initial_1']
     ))
     mlp_model.add(tf.keras.layers.BatchNormalization(axis=1))
@@ -169,6 +200,63 @@ def create_mlp(params):
     return mlp_model
 
 
+client = bigquery_storage_v1beta1.BigQueryStorageClient()
+
+
+def get_reader_for_stream(session_pickled: bytes, stream_name_bytes: bytes):
+    session = pickle.loads(codecs.decode(session_pickled, "base64"))
+    stream_name = stream_name_bytes.decode("utf-8")
+    for stream in session.streams:
+        if stream.name == stream_name:
+            reader = data.get_reader(client, stream)
+            rows = reader.rows(session)
+            for row in rows:
+                # df = pd.DataFrame([row])
+                yield (
+                    # df.drop(['cash', ], axis=1).values,
+                    # df['cash'].values 
+                    [
+                        row.get("year"),
+                        row.get("start_time_norm_midnight"),
+                        row.get("start_time_norm_noon"),
+                        row.get("pickup_lat_std"),
+                        row.get("pickup_long_std"),
+                        row.get("pickup_lat_centered"),
+                        row.get("pickup_long_centered"),
+                        row.get("day_of_week_MONDAY"),
+                        row.get("day_of_week_TUESDAY"),
+                        row.get("day_of_week_WEDNESDAY"),
+                        row.get("day_of_week_THURSDAY"),
+                        row.get("day_of_week_FRIDAY"),
+                        row.get("day_of_week_SATURDAY"),
+                        row.get("day_of_week_SUNDAY"),
+                        row.get("month_JANUARY"),
+                        row.get("month_FEBRUARY"),
+                        row.get("month_MARCH"),
+                        row.get("month_APRIL"),
+                        row.get("month_MAY"),
+                        row.get("month_JUNE"),
+                        row.get("month_JULY"),
+                        row.get("month_AUGUST"),
+                        row.get("month_SEPTEMBER"),
+                        row.get("month_OCTOBER"),
+                        row.get("month_NOVEMBER"),
+                        row.get("month_DECEMBER"),
+                    ],
+                    row.get("cash")
+                )
+        client.finalize_stream(stream)
+    
+
+
+def bq_stream_generator(table_id: bytes, partition: bytes):
+    session, _ = data.get_data_partition_sharded(table_id.decode("utf-8"), partition.decode("utf-8"), shards=100)
+    encoded_session = codecs.encode(pickle.dumps(session), "base64")
+    for stream in session.streams:
+        tf.compat.v1.logging.info("Reading from BigQuery read session %s" % (stream.name))
+        yield(encoded_session, stream.name)
+
+
 def train_mlp_batches(table_id, params):
     """
     TODO: description
@@ -179,25 +267,75 @@ def train_mlp_batches(table_id, params):
 
     # create model and define early stopping
     # https://www.tensorflow.org/guide/distributed_training#multiworkermirroredstrategy
-    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(
-        tf.distribute.experimental.CollectiveCommunication.AUTO)
+    # strategy = tf.distribute.experimental.ParameterServerStrategy(
+    #     tf.distribute.experimental.CollectiveCommunication.AUTO)
+    strategy = tf.distribute.MirroredStrategy()
+    # strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
     with strategy.scope():
         mlp_model = create_mlp(params)
 
     # https://www.tensorflow.org/api_docs/python/tf/data/Dataset#from_generator
-    dataset = tf.data.Dataset.from_generator(
-        generator_input,
-        (tf.int64, tf.int64),
-        output_shapes=(tf.TensorShape([None]), tf.TensorShape([None])),
-        args=(
-            table_id,
-            params['chunk_size'],
-            params['batch_size'],
-            'train')
-    ).batch(128)
+    # train_data = tf.data.Dataset.from_generator(
+    #     generator_input,
+    #     (tf.float64, tf.uint16),
+    #     output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
+    #     # output_shapes=(tf.TensorShape([None])),
+    #     args=[
+    #         table_id,
+    #         params['chunk_size'],
+    #         params['batch_size'],
+    #         'train']
+    # ).batch(params['batch_size']).repeat(params['epochs']).prefetch(buffer_size=tf.data.experimental.AUTOTUNE).cache(filename="/tmp/train")
+
+    # validation_data = tf.data.Dataset.from_generator(
+    #     generator_input,
+    #     (tf.float64, tf.uint16),
+    #     output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
+    #     # output_shapes=(tf.TensorShape([None])),
+    #     args=[
+    #         table_id,
+    #         params['chunk_size'],
+    #         params['batch_size'],
+    #         'validation']
+    # ).batch(params['batch_size']).repeat(params['epochs']).prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+    train_data = tf.data.Dataset.from_generator(
+        bq_stream_generator,
+        (tf.string, tf.string),
+        # output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
+        args=(table_id, 'train')
+    ).interleave(
+        lambda session, stream:
+        tf.data.Dataset.from_generator(
+            get_reader_for_stream,
+            (tf.float64, tf.uint16),
+            output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
+            args=(session, stream)
+        ).prefetch(buffer_size=tf.data.experimental.AUTOTUNE),
+        num_parallel_calls=8,
+        cycle_length=10
+    ).prefetch(buffer_size=tf.data.experimental.AUTOTUNE).batch(params['batch_size']).repeat(params['epochs'])
+
+    validation_data = tf.data.Dataset.from_generator(
+        bq_stream_generator,
+        (tf.string, tf.string),
+        # output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
+        args=(table_id, 'validation')
+    ).interleave(
+        lambda session, stream:
+        tf.data.Dataset.from_generator(
+            get_reader_for_stream,
+            (tf.float64, tf.uint16),
+            output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
+            args=(session, stream)
+        ).prefetch(buffer_size=tf.data.experimental.AUTOTUNE),
+        # num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        num_parallel_calls=8,
+        cycle_length=10
+    ).prefetch(buffer_size=tf.data.experimental.AUTOTUNE).batch(params['batch_size']).repeat(params['epochs'])
 
     es = tf.keras.callbacks.EarlyStopping(
-        monitor='loss',
+        monitor='val_loss',
         mode='min',
         verbose=0,
         patience=50
@@ -206,14 +344,22 @@ def train_mlp_batches(table_id, params):
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-    history = mlp_model.fit(dataset,
+    history = mlp_model.fit(train_data,
                             epochs=params['epochs'],
                             verbose=2,
                             callbacks=[es, tensorboard_callback],
-                            steps_per_epoch=math.ceil(get_sample_count(
+                            steps_per_epoch=math.floor(get_sample_count(
                                 table_id,
                                 partition='train'
-                            ) / params['batch_size']))
+                            ) / params['batch_size']),
+                            validation_data=validation_data,
+                            validation_steps=math.ceil(
+                                get_sample_count(
+                                    table_id,
+                                    partition='validation'
+                                ) / params['batch_size']),
+                            validation_freq=params['validation_freq'],
+                            )
 
     # train the model on TPU with fixed batch size.
     # history = mlp_model.fit_generator(
@@ -236,10 +382,10 @@ def train_mlp_batches(table_id, params):
     #         batch_size=params['batch_size'],
     #         partition='validation'
     #     ),
-    #     validation_steps=math.ceil(get_sample_count(
-    #         table_id,
-    #         partition='validation'
-    #     ) / params['batch_size']),
+        # validation_steps=math.ceil(get_sample_count(
+        #     table_id,
+        #     partition='validation'
+        # ) / params['batch_size']),
     #     validation_freq=params['validation_freq']
     # )
 

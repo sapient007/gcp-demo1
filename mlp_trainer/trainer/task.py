@@ -68,12 +68,15 @@ def train_and_evaluate(args):
         task_index = tf_config_json.get('task', {}).get('index')
 
         tf_config_json["cluster"]["chief"] = cluster.get("master")
-        del tf_config_json["cluster"]["master"]
+        if cluster.get("master"):
+            del tf_config_json["cluster"]["master"]
 
         # Map ML Engine master to chief for TF
         if job_name == "master":
             tf_config_json["task"]["type"] = "chief"
             os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
+
+    tf.config.optimizer.set_jit(True)
 
     # train model and get history
     history, mlp_model = model.train_mlp_batches(
@@ -222,7 +225,7 @@ if __name__ == '__main__':
         help='Number of epochs to train, default=3',
         default=3)
     parser.add_argument(
-        '--validation_freq',
+        '--validation-freq',
         type=int,
         help='Validation frequency, default=5',
         default=1)

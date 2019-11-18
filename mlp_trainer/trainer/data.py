@@ -1,4 +1,5 @@
 from typing import List, Tuple
+import pickle
 from google.cloud import bigquery_storage_v1beta1
 
 
@@ -20,31 +21,31 @@ def get_read_options(partition_name=None):
     read_options = bigquery_storage_v1beta1.types.TableReadOptions()
     read_options.selected_fields.append("cash")
     read_options.selected_fields.append("year")
-    # read_options.selected_fields.append("start_time_norm_midnight")
-    # read_options.selected_fields.append("start_time_norm_noon")
-    # read_options.selected_fields.append("pickup_long_std")
-    # read_options.selected_fields.append("pickup_long_std")
-    # read_options.selected_fields.append("pickup_lat_centered")
-    # read_options.selected_fields.append("pickup_long_centered")
-    # read_options.selected_fields.append("day_of_week_MONDAY")
-    # read_options.selected_fields.append("day_of_week_TUESDAY")
-    # read_options.selected_fields.append("day_of_week_WEDNESDAY")
-    # read_options.selected_fields.append("day_of_week_THURSDAY")
-    # read_options.selected_fields.append("day_of_week_FRIDAY")
-    # read_options.selected_fields.append("day_of_week_SATURDAY")
-    # read_options.selected_fields.append("day_of_week_SUNDAY")
-    # read_options.selected_fields.append("month_JANUARY")
-    # read_options.selected_fields.append("month_FEBRUARY")
-    # read_options.selected_fields.append("month_MARCH")
-    # read_options.selected_fields.append("month_APRIL")
-    # read_options.selected_fields.append("month_MAY")
-    # read_options.selected_fields.append("month_JUNE")
-    # read_options.selected_fields.append("month_JULY")
-    # read_options.selected_fields.append("month_AUGUST")
-    # read_options.selected_fields.append("month_SEPTEMBER")
-    # read_options.selected_fields.append("month_OCTOBER")
-    # read_options.selected_fields.append("month_NOVEMBER")
-    # read_options.selected_fields.append("month_DECEMBER")
+    read_options.selected_fields.append("start_time_norm_midnight")
+    read_options.selected_fields.append("start_time_norm_noon")
+    read_options.selected_fields.append("pickup_lat_std")
+    read_options.selected_fields.append("pickup_long_std")
+    read_options.selected_fields.append("pickup_lat_centered")
+    read_options.selected_fields.append("pickup_long_centered")
+    read_options.selected_fields.append("day_of_week_MONDAY")
+    read_options.selected_fields.append("day_of_week_TUESDAY")
+    read_options.selected_fields.append("day_of_week_WEDNESDAY")
+    read_options.selected_fields.append("day_of_week_THURSDAY")
+    read_options.selected_fields.append("day_of_week_FRIDAY")
+    read_options.selected_fields.append("day_of_week_SATURDAY")
+    read_options.selected_fields.append("day_of_week_SUNDAY")
+    read_options.selected_fields.append("month_JANUARY")
+    read_options.selected_fields.append("month_FEBRUARY")
+    read_options.selected_fields.append("month_MARCH")
+    read_options.selected_fields.append("month_APRIL")
+    read_options.selected_fields.append("month_MAY")
+    read_options.selected_fields.append("month_JUNE")
+    read_options.selected_fields.append("month_JULY")
+    read_options.selected_fields.append("month_AUGUST")
+    read_options.selected_fields.append("month_SEPTEMBER")
+    read_options.selected_fields.append("month_OCTOBER")
+    read_options.selected_fields.append("month_NOVEMBER")
+    read_options.selected_fields.append("month_DECEMBER")
 
     if partition_name:
         read_options.row_restriction = 'ml_partition = "{}"'.format(partition_name)    
@@ -91,6 +92,15 @@ def get_data_partition_sharded(table_id: str, partition_name: str, shards=1) -> 
         readers.append(reader)
 
     return session, readers
+
+
+def get_reader_for_stream(session_pickled: bytes, stream_name_bytes: bytes):
+    session = pickle.loads(session_pickled)
+    stream_name = stream_name_bytes.decode("utf-8")
+    client = bigquery_storage_v1beta1.BigQueryStorageClient()
+    for stream in session.streams:
+        if stream.name == stream_name:
+            return get_reader(client, stream)
 
 
 def get_df(reader, session):
