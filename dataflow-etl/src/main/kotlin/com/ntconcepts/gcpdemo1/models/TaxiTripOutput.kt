@@ -1,6 +1,8 @@
 package com.ntconcepts.gcpdemo1.models
 
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.GenericRecordBuilder
 import org.apache.commons.csv.CSVFormat
 import org.apache.commons.csv.CSVPrinter
 import java.io.Serializable
@@ -125,6 +127,37 @@ data class TaxiTripOutput(
         return builder.toString()
     }
 
+    fun toGenericRecord(): GenericRecord {
+        val record = GenericRecordBuilder(getAvroSchema())
+            .set("cash", cash)
+            .set("year", year)
+            .set("year_norm", year_norm)
+            .set("start_time_epoch", start_time_epoch)
+            .set("start_time_norm_midnight", start_time_norm_midnight)
+            .set("start_time_norm_noon", start_time_norm_noon)
+            .set("trip_miles", trip_miles)
+//            .set("ml_partition", trip.ml_partition)
+//            .set("distance_from_center", trip.distance_from_center)
+            .set("pickup_latitude", pickup_latitude)
+            .set("pickup_latitude", pickup_latitude)
+            .set("pickup_lat_centered", pickup_lat_centered)
+            .set("pickup_long_centered", pickup_long_centered)
+            .set("pickup_lat_norm", pickup_lat_norm)
+            .set("pickup_long_norm", pickup_long_norm)
+            .set("pickup_lat_std", pickup_lat_std)
+            .set("pickup_long_std", pickup_long_std)
+
+        daysOfWeekEncoded?.toSortedMap()?.forEach {
+            record.set(it.key, it.value)
+        }
+
+        monthsEncoded?.toSortedMap()?.forEach {
+            record.set(it.key, it.value)
+        }
+
+        return record.build() as GenericRecord
+    }
+
 
     //Helper to generate schema for ParquetIO.sink()
     object AvroSchemaGetter {
@@ -146,7 +179,7 @@ data class TaxiTripOutput(
         val fields = ArrayList<Schema.Field>()
         fields.add(Schema.Field("cash", Schema.create(Schema.Type.INT), "cash", 0))
         fields.add(Schema.Field("year", Schema.create(Schema.Type.INT), "year", 0))
-        fields.add(Schema.Field("year_norm", Schema.create(Schema.Type.FLOAT), "year_norm", 0))
+        fields.add(Schema.Field("year_norm", Schema.create(Schema.Type.DOUBLE), "year_norm", 0))
         fields.add(Schema.Field("start_time_epoch", Schema.create(Schema.Type.LONG), "start_time_epoch", 0L))
         fields.add(
             Schema.Field(
@@ -158,8 +191,6 @@ data class TaxiTripOutput(
         )
         fields.add(Schema.Field("start_time_norm_noon", Schema.create(Schema.Type.DOUBLE), "start_time_norm_noon", 0.0))
         fields.add(Schema.Field("trip_miles", Schema.create(Schema.Type.DOUBLE), "trip_miles", 0.0))
-//        fields.add(Schema.Field("ml_partition", Schema.create(Schema.Type.STRING), "ml_partition", ""))
-//        fields.add(Schema.Field("distance_from_center", Schema.create(Schema.Type.DOUBLE), "distance_from_center", 0.0))
         fields.add(Schema.Field("pickup_latitude", Schema.create(Schema.Type.DOUBLE), "pickup_latitude", 0.0))
         fields.add(Schema.Field("pickup_longitude", Schema.create(Schema.Type.DOUBLE), "pickup_longitude", 0.0))
         fields.add(Schema.Field("pickup_lat_centered", Schema.create(Schema.Type.DOUBLE), "pickup_lat_centered", 0.0))
