@@ -4,7 +4,9 @@ import os
 import json
 
 import tensorflow as tf
-import trainer.model as model
+import trainer.model_loop as model
+# import trainer.model_tf as model_tf
+# import trainer.save_model as save_model
 
 import hypertune
 
@@ -30,6 +32,7 @@ def train_and_evaluate(args):
 
     # format parameters from input arguments
     params = {
+        'cycle_length': args.cycle_length,
         'dense_neurons_1': args.dense_neurons_1,
         'dense_neurons_2': args.dense_neurons_2,
         'dense_neurons_3': args.dense_neurons_3,
@@ -58,8 +61,10 @@ def train_and_evaluate(args):
         args (args): Input arguments.
     """
 
+    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
+
     tf_config = os.environ.get('TF_CONFIG')
-    print(tf_config)
+    tf.get_logger().info("NTC_DEBUG: Old TF_CONFIG: {}".format(tf_config))
     # If TF_CONFIG is not available run local.
     if tf_config:
         tf_config_json = json.loads(tf_config)
@@ -70,25 +75,51 @@ def train_and_evaluate(args):
         tf_config_json["cluster"]["chief"] = cluster.get("master")
         if cluster.get("master"):
             del tf_config_json["cluster"]["master"]
+            cluster = tf_config_json.get('cluster')
 
         # Map ML Engine master to chief for TF
         if job_name == "master":
-            tf_config_json["task"]["type"] = "chief"
+            tf_config_json["task"]["type"] = 'chief'
+            job_name = 'chief'
             os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
+        tf.get_logger().info("NTC_DEBUG: New TF_CONFIG: {}".format(tf_config_json))
 
-    tf.config.optimizer.set_jit(True)
 
-    # train model and get history
-    history, mlp_model = model.train_mlp_batches(
-        args.table_id,
-        params=params
-    )
+        # if job_name is not None or task_index is not None:
+        #     cluster_spec = tf.train.ClusterSpec(cluster)
+
+        #     tf.get_logger().info("NTC_DEBUG: {}".format(cluster_spec))
+        #     server = tf.distribute.Server(
+        #         cluster_spec,
+        #         job_name=job_name,
+        #         task_index=task_index
+        #     )
+        #     if job_name == 'ps':
+        #         server.join()
+        #         return
+        #     elif job_name in ['chief', 'worker']:
+        #         tf.get_logger().info("NTC_DEBUG: job_name: {}; task_index: {}; server.target: {}".format(job_name, task_index, server.target))
+        #         with tf.compat.v1.Session(server.target):
+        #             return model.train_and_evaluate(
+        #                 args.table_id, 
+        #                 args.job_dir, 
+        #                 params=params,
+        #                 job_name=job_name,
+        #                 task_index=task_index,
+        #             )
+
+
+    return model.train_and_evaluate(args.table_id, args.job_dir, params=params)
+
+    # model_tf.train_and_evaluate(args.table_id, params)
+    # save_model.save_estimator_model(bucket_name=args.bucket, path=args.job_dir)
 
     # save model and history to job directory
-    model.save_model(
-        mlp_model,
-        job_dir=args.job_dir
-    )
+    # save_model.save_model(
+    #     mlp_model,
+    #     bucket_name=args.bucket,
+    #     path=args.job_dir
+    # )
 
 
 def tune(args):
@@ -109,6 +140,7 @@ def tune(args):
 
     # format parameters from input arguments
     params = {
+        'cycle_length': args.cycle_length,
         'dense_neurons_1': args.dense_neurons_1,
         'dense_neurons_2': args.dense_neurons_2,
         'dense_neurons_3': args.dense_neurons_3,
@@ -155,15 +187,35 @@ if __name__ == '__main__':
         help='BigQuery table containing dataset',
         default='finaltaxi_encoded_sampled_small')
     parser.add_argument(
+        '--avro-bucket',
+        type=str,
+        help='GCS bucket name Avro files are stored in',
+        default='gcp-cert-demo-1')
+    parser.add_argument(
+        '--avro-path',
+        type=str,
+        help='GCS path prefix for data',
+        default='data/avro/1_pct/')
+    parser.add_argument(
         '--task',
         type=str,
         help='train or tune',
         default='train')
     parser.add_argument(
+        '--bucket',
+        type=str,
+        help='Bucket name to write history and export model',
+        default='gcp-cert-demo-1')
+    parser.add_argument(
         '--job-dir',
         type=str,
-        help='Directory to create in bucket to write history and export model',
-        default='test_job_dir')
+        help='Directory to create in bucket to write history, logs, and export model',
+        default='model_output')
+    parser.add_argument(
+        '--cycle-length',
+        type=int,
+        help='The number of input elements that will be processed concurrently',
+        default=8)
     parser.add_argument(
         '--dense-neurons-1',
         type=int,
@@ -178,7 +230,7 @@ if __name__ == '__main__':
         '--dense-neurons-3',
         type=int,
         help='Number of neurons in third model layer, default=8',
-        default=8)
+        default=16)
     parser.add_argument(
         '--activation',
         type=str,
@@ -203,11 +255,11 @@ if __name__ == '__main__':
         '--optimizer',
         type=str,
         help='Optimizer function, default=adam',
-        default='adam')
+        default='Adam')
     parser.add_argument(
         '--learning-rate',
         type=float,
-        help='Learning rate, default=0.1',
+        help='Learning rate, default=0.01',
         default=0.1)
     parser.add_argument(
         '--batch-size',
@@ -228,7 +280,7 @@ if __name__ == '__main__':
         '--validation-freq',
         type=int,
         help='Validation frequency, default=5',
-        default=1)
+        default=5)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,

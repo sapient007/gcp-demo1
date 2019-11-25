@@ -1,37 +1,38 @@
 trainingInput:
   scaleTier: CUSTOM
-  masterType: n1-standard-8
-  masterConfig:
-    acceleratorConfig:
-      count: 4
-      type: NVIDIA_TESLA_T4
-  # workerType: n1-standard-4
-  # workerCount: 2
-  # workerConfig:
+  masterType: n1-standard-4
+  # masterConfig:
   #   acceleratorConfig:
   #     count: 1
   #     type: NVIDIA_TESLA_K80
+  workerType: n1-highmem-8
+  workerCount: 2
+  workerConfig:
+    acceleratorConfig:
+      count: 1
+      type: NVIDIA_TESLA_K80
   # parameterServerType: n1-standard-4
-  # parameterServerCount: 2
-  pythonModule: trainer.task
-  runtimeVersion: "1.14"
-  pythonVersion: "3.5"
+  # parameterServerCount: 1
+  # pythonModule: trainer.task
   args:
     - --task=train
-    - --table-id=finaltaxi_encoded_sampled
+    - --table-id=finaltaxi_encoded_sampled_small
+    - --avro-bucket=gcp-cert-demo-1
+    - --avro-path=data/avro/full/
+    - --cycle-length=16
     - --dense-neurons-1=64
     - --dense-neurons-2=32
-    - --dense-neurons-3=8
+    - --dense-neurons-3=16
     - --activation=relu
     - --dropout-rate-1=0.1
     - --dropout-rate-2=0.1
     - --dropout-rate-3=0.1
     - --optimizer=adam
     - --learning-rate=0.1
-    - --chunk-size=50000
-    - --batch-size=256
-    - --epochs=3
-    - --validation_freq=5
+    - --chunk-size=5000000
+    - --batch-size=102400
+    - --epochs=5
+    - --validation-freq=1
     - --kernel-initial-1=normal
     - --kernel-initial-2=normal
     - --kernel-initial-3=normal
