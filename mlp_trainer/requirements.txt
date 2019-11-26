@@ -7,3 +7,6 @@ talos==0.6.3
 google-cloud-bigquery==1.22.0
 scipy==1.2.0
 ipython==7.9.0
+google-cloud-storage==1.23.0
+python-snappy==0.5.4
+fastavro==0.22.7
