@@ -133,3 +133,5 @@ dmypy.json
 # Gradle
 .gradle/
 C:/.
+
+mlp_trainer/model/
