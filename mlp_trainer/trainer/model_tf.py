@@ -48,7 +48,7 @@ def input_fn_eval():
     # return tf.data.Dataset.from_tensors(({"year_norm":[1.]}, [1.]))
     dataset = generator.get_data(
         global_table_id, 
-        'validation', 
+        'test', 
         global_params['batch_size'],
         global_params['epochs'], 
         global_params['chunk_size'], 
@@ -75,7 +75,7 @@ def input_fn_eval():
     #     print(value)
 
 
-def train_and_evaluate(table_id: str, params: dict):
+def train_and_evaluate(table_id: str, job_dir: str, params: dict):
     global global_table_id
     global global_params
     global_table_id = table_id
@@ -85,8 +85,8 @@ def train_and_evaluate(table_id: str, params: dict):
     # strategy = tf.distribute.MirroredStrategy()
 
     config = tf.estimator.RunConfig(
-        # model_dir='model',
-        # train_distribute=strategy,
+        model_dir=job_dir,
+        train_distribute=strategy,
         eval_distribute=strategy
     )
 

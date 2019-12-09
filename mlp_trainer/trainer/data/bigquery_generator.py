@@ -13,17 +13,8 @@ def bq_stream_generator(table_id: bytes, partition: bytes):
     session = data.get_data_partition_sharded(table_id.decode("utf-8"), partition.decode("utf-8"), shards=100)
     encoded_session = codecs.encode(pickle.dumps(session), "base64")
     for stream in session.streams:
+        tf.get_logger().info("Adding BigQuery read session %s to dataset" % (stream.name))
         yield(tf.constant(encoded_session), tf.constant(stream.name))
-
-
-@tf.function
-def bg_generator(table_id: bytes, partition: bytes):
-    session = data.get_data_partition_sharded(table_id.decode("utf-8"), partition.decode("utf-8"), shards=100)
-    for stream in session.streams:
-        reader = data.get_reader(data.client, stream)
-        rows = reader.rows(session)
-        for row in rows:
-            yield ({"year_norm": tf.constant(row.get("year_norm"))}, tf.constant(row.get("cash")))
 
 
 def get_reader_for_stream(session_pickled: bytes, stream_name_bytes: bytes):
@@ -51,26 +42,52 @@ def get_reader_for_stream(session_pickled: bytes, stream_name_bytes: bytes):
 
 @tf.function
 def get_data(table_id: str, partition: str, batch_size: int,
-             epochs: int, chunk_size: int, cycle_length: int, map_function='keras') -> tf.data.Dataset:
+             epochs: int, chunk_size: int, cycle_length: int,
+             num_workers: int, task_index: int, map_function='keras') -> tf.data.Dataset:
     if map_function == 'keras':
         map_fn = keras_map_fn
     elif map_function == 'estimator':
         map_fn = estimator_map_fn
-    
-    dataset = tf.data.Dataset.from_generator(
+
+    # session = data.get_data_partition_sharded(table_id, partition, shards=100)
+    # encoded_session = codecs.encode(pickle.dumps(session), "base64")
+    # streams = []
+    # sessions = []
+    # for stream in session.streams:
+    #     sessions.append(tf.constant(encoded_session))
+    #     streams.append(tf.constant(stream.name))
+
+    # tf.get_logger().info("Bigquery Storage API created {} streams. Will be sharded among {} workers".format(len(streams), num_workers))
+ 
+    # dataset = tf.data.Dataset.from_tensor_slices(
+    #     (sessions,
+    #     streams)
+    # ).
+
+    streams_ds = tf.data.Dataset.from_generator(
         bq_stream_generator,
         (tf.string, tf.string),
         output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
         args=(table_id, partition)
-    ).interleave(
+    ).shard(
+        num_workers,
+        task_index
+    )
+    
+    elements_ds = streams_ds.interleave(
         lambda session, stream:
         tf.data.Dataset.from_generator(
             get_reader_for_stream,
             tuple(features.get_generator_output()),
             output_shapes=tuple(features.get_generator_output_shape()),
             args=(session, stream)
+        ).shard(
+            num_workers,
+            task_index
         ).prefetch(
-            buffer_size=chunk_size
+            buffer_size=batch_size*5
+        ).shuffle(
+            buffer_size=batch_size*5
         ),
         num_parallel_calls=tf.data.experimental.AUTOTUNE,
         cycle_length=cycle_length,
@@ -82,9 +99,10 @@ def get_data(table_id: str, partition: str, batch_size: int,
     ).batch(
         batch_size
     ).prefetch(
-        math.floor(chunk_size / batch_size)
+        math.ceil((batch_size*5) / batch_size)
     ).repeat(epochs)
-    return dataset
+
+    return elements_ds
 
 
 @tf.function

@@ -1,15 +1,27 @@
 import io
-from typing import Iterator
+import math
+from typing import Iterator, List, Tuple
 
 from google.cloud import storage
 from fastavro import reader
+import tensorflow as tf
+
+from trainer.data import features as features
 
 client = storage.Client()
 
 
-def list_blobs(bucket_name: bytes, prefix: bytes) -> Iterator[storage.blob.Blob]: 
-    for blob in client.list_blobs(bucket_name.decode('utf-8'), prefix=prefix.decode('utf-8')):
-        yield (blob.name, blob.bucket.name)
+@tf.function
+def list_blobs(bucket_name: str, prefix: str, partition: str) -> List[str]:
+
+    obj_names = []
+
+    for blob in client.list_blobs(
+        bucket_name, 
+        prefix="{}/{}".format(prefix, partition)
+    ):
+        obj_names.append(tf.constant(blob.name))
+    return obj_names
 
 
 def download_blob(client: storage.Client, obj_name: str, bucket_name: str) -> bytes:
@@ -22,73 +34,118 @@ def fetch_gcs_avro(blob: bytes):
         yield record
 
 
-def generate_blob(bucket_name: bytes, prefix: bytes):
-    blob_bytes = download_blob(client, bucket_name.decode('utf-8'), prefix.decode('utf-8'))
+def generate_blob(bucket_name_bytes: bytes, obj_name_bytes: bytes):
+    bucket_name = bucket_name_bytes.decode('utf-8')
+    obj_name = obj_name_bytes.decode('utf-8')
+    tf.get_logger().debug("Generating rows from GCS object gs://{}/{}".format(bucket_name, obj_name))
+    blob_bytes = download_blob(
+        client,
+        obj_name,
+        bucket_name,
+    )
     for row in fetch_gcs_avro(blob_bytes):
         yield(
-            features_from_row(row),
-            row.get("cash")
+            tuple(features_from_row(row))
         )
 
 
 def features_from_row(row: dict):
-    return [
-        row.get("year"),
-        row.get("start_time_norm_midnight"),
-        row.get("start_time_norm_noon"),
-        row.get("pickup_lat_std"),
-        row.get("pickup_long_std"),
-        row.get("pickup_lat_centered"),
-        row.get("pickup_long_centered"),
-        row.get("day_of_week_MONDAY"),
-        row.get("day_of_week_TUESDAY"),
-        row.get("day_of_week_WEDNESDAY"),
-        row.get("day_of_week_THURSDAY"),
-        row.get("day_of_week_FRIDAY"),
-        row.get("day_of_week_SATURDAY"),
-        row.get("day_of_week_SUNDAY"),
-        row.get("month_JANUARY"),
-        row.get("month_FEBRUARY"),
-        row.get("month_MARCH"),
-        row.get("month_APRIL"),
-        row.get("month_MAY"),
-        row.get("month_JUNE"),
-        row.get("month_JULY"),
-        row.get("month_AUGUST"),
-        row.get("month_SEPTEMBER"),
-        row.get("month_OCTOBER"),
-        row.get("month_NOVEMBER"),
-        row.get("month_DECEMBER"),
-    ]
+    feat_values = []
+    for feat in features.defs():
+        feat_values.append(row.get(feat.get('name')))
+    feat_values.append(row.get('cash'))
+    return feat_values
 
-        # train_data = tf.data.Dataset.from_generator(
-        #     avro_data.list_blobs,
-        #     (tf.string, tf.string),
-        #     # output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
-        #     args=(avro_bucket, "%strain/" % avro_path)
-        # ).interleave(lambda obj_name, bucket_name: 
-        #     tf.data.Dataset.from_generator(
-        #         avro_data.generate_blob,
-        #         (tf.float64, tf.uint16),
-        #         output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
-        #         args=(obj_name, bucket_name)
-        #     ).prefetch(buffer_size=params['chunk_size']),
-        #     num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        #     cycle_length=params['cycle_length']
-        # ).batch(params['batch_size']).prefetch(20).repeat(params['epochs'])
 
-        # validation_data = tf.data.Dataset.from_generator(
-        #     avro_data.list_blobs,
-        #     (tf.string, tf.string),
-        #     # output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
-        #     args=(avro_bucket, "%svalidation/" % avro_path)
-        # ).interleave(lambda obj_name, bucket_name: 
-        #     tf.data.Dataset.from_generator(
-        #         avro_data.generate_blob,
-        #         (tf.float64, tf.uint16),
-        #         output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
-        #         args=(obj_name, bucket_name)
-        #     ).prefetch(buffer_size=params['chunk_size']),
-        #     num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        #     cycle_length=params['cycle_length']
-        # ).batch(params['batch_size']).prefetch(20).repeat(params['epochs'])
+@tf.function
+def get_data(bucket_name: str, prefix: str, partition: str, batch_size: int,
+             epochs: int, chunk_size: int, cycle_length: int, num_workers: int,
+             task_index: int, map_function='keras') -> tf.data.Dataset:
+    if map_function == 'keras':
+        map_fn = keras_map_fn
+    elif map_function == 'estimator':
+        map_fn = estimator_map_fn
+    
+    # blobs = list_blobs(bucket_name, prefix, partition)
+
+    # tf.get_logger().info("Starting to read from {} GCS objects".format(len(blobs)))
+
+    # dataset = tf.data.Dataset.from_tensor_slices(
+    #     blobs
+    # )
+
+    dataset = tf.data.Dataset.list_files(
+        "gs://{}/{}/{}/*.avro".format(bucket_name, prefix, partition)
+    ).map(
+        lambda file_path:
+        tf.io.read_file(file_path)
+    )
+
+
+    
+    # .shard(
+    #         num_workers,
+    #         task_index
+    # ).interleave(
+    #     lambda obj_name:
+    #     print(obj_name),
+    #     # tf.data.Dataset.from_generator(
+    #     #     generate_blob,
+    #     #     tuple(features.get_generator_output()),
+    #     #     output_shapes=tuple(features.get_generator_output_shape()),
+    #     #     args=(bucket_name, obj_name)
+    #     # ).shard(
+    #     #     num_workers,
+    #     #     task_index
+    #     # ).prefetch(
+    #     #     buffer_size=batch_size*5
+    #     # ).shuffle(
+    #     #     buffer_size=batch_size*5
+    #     # ),
+    #     num_parallel_calls=tf.data.experimental.AUTOTUNE,
+    #     cycle_length=cycle_length,
+    #     # block_length=batch_size,
+    # ).interleave(
+    #     map_fn,
+    #     num_parallel_calls=tf.data.experimental.AUTOTUNE,
+    #     cycle_length=cycle_length
+    # ).batch(
+    #     batch_size
+    # ).prefetch(
+    #     math.ceil((batch_size*5) / batch_size)
+    # ).repeat(epochs)
+
+    return dataset
+
+
+@tf.function
+def estimator_map_fn(*args):
+    feats = features.defs()
+    feat_cols = {}
+    i = 0
+    # Loop over feat cols. Label is last and we'll manually add
+    # This is ugly bc it depends on everything staying in order
+    while i < len(args) - 1:
+        feat_cols[feats[i].get('name')] = args[1]
+        i += 1
+    
+    return tf.data.Dataset.from_tensors(
+        ((feat_cols), args[len(args)-1], (None, 1))
+    )
+
+
+@tf.function
+def keras_map_fn(*args):
+    feat_cols = []
+    i = 0
+    # Loop over feat cols. Label is last and we'll manually add
+    while i < len(args) - 1:
+        feat_cols.append(args[i])
+        i += 1
+    
+    return tf.data.Dataset.from_tensors(
+        (
+            tf.convert_to_tensor(tuple(feat_cols), dtype=tf.dtypes.float32), 
+            tf.convert_to_tensor([args[len(args)-1]])
+        )
+    )

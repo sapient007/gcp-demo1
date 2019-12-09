@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.0.0-gpu-py3
+FROM tensorflow/tensorflow:nightly-py3
 
 RUN apt-get update && apt-get install -y libsnappy-dev
 

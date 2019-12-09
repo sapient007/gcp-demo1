@@ -1,0 +1,100 @@
+apiVersion: "kubeflow.org/v1alpha3"
+kind: Experiment
+metadata:
+  namespace: kubeflow
+  name: gcp-demo1-tune-sampled-small
+spec:
+  parallelTrialCount: 11
+  maxTrialCount: 410
+  maxFailedTrialCount: 3
+  objective:
+    type: maximize
+    goal: 0.99
+    objectiveMetricName: test_accuracy
+  algorithm:
+    algorithmName: grid
+    algorithmSettings:
+      - name: --dropout-rate
+        value: "5"
+      - name: --optimizer
+        value: "3"
+      - name: --batch-size-float
+        value: "1"
+  metricsCollectorSpec:
+    source:
+      fileSystemPath:
+        path: /model/output
+        kind: Directory
+    collector:
+      kind: TensorFlowEvent
+  parameters:
+    - name: --learning-rate
+      parameterType: discrete
+      feasibleSpace: 
+        list: ["0.0001", "0.0005", "0.001", "0.005", "0.01", "0.05", "0.1", "0.5", "1.0"]
+    - name: --dropout-rate
+      parameterType: discrete
+      feasibleSpace:
+        list: ["0.0", "0.5", "0.99"]
+    - name: --optimizer
+      parameterType: categorical
+      feasibleSpace:
+        list: ["adam", "rmsprop", "sgd"]
+    - name: --batch-size-float
+      parameterType: discrete
+      feasibleSpace:
+        list: ["64", "128", "1024", "10240", "102400"]
+  trialTemplate:
+    goTemplate:
+        rawTemplate: |-
+          apiVersion: "kubeflow.org/v1"
+          kind: "TFJob"
+          metadata:
+            name: {{.Trial}}
+            namespace: {{.NameSpace}}
+          spec:
+            cleanPodPolicy: None 
+            tfReplicaSpecs:
+              Worker:
+                replicas: 1
+                restartPolicy: ExitCode
+                template:
+                  spec:
+                    containers:
+                      - name: tensorflow
+                        image: gcr.io/ml-sandbox-1-191918/gcp-demo1:training
+                        imagePullPolicy: Always
+                        command:
+                          - "python"
+                          - "-m"
+                          - "trainer.task"
+                          - "train"
+                          - "--hypertune=True"
+                          - "--num-workers=1"
+                          - "--epochs=10"
+                          - "--chunk-size=5000000"
+                          - "--cycle-length=7"
+                          - "--job-dir=/model/output"
+                          - "--table-id=finaltaxi_encoded_sampled_small"
+                          - "--summary-write-steps=100000"
+                          - "--log-step-count-steps=1000"
+                          {{- with .HyperParameters}}
+                          {{- range .}}
+                          - "{{.Name}}={{.Value}}"
+                          {{- end}}
+                          {{- end}}
+                        resources:
+                          limits:
+                            cpu: '7'
+                            memory: '49G'
+                        env:
+                        - name: GOOGLE_APPLICATION_CREDENTIALS
+                          value: "/etc/secrets/user-gcp-sa.json"
+                        volumeMounts:
+                        - name: sa
+                          mountPath: "/etc/secrets"
+                          readOnly: true
+                    volumes:
+                    - name: sa
+                      secret:
+                        secretName: user-gcp-sa

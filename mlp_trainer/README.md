@@ -16,7 +16,7 @@ NOW=$(date +"%Y%m%d_%H%M%S") && gcloud ai-platform jobs submit training "chicago
     --config=./mlp_trainer/training_config.yaml
 
 
-rm -r mlp_trainer/model && gcloud ai-platform local train --module-name=trainer.task --job-dir=model --package-path=mlp_trainer/trainer -- --batch-size=1024 --epochs=1 --chunk-size=250000
+rm -r mlp_trainer/model && gcloud ai-platform local train --module-name=trainer.task --job-dir=model --package-path=mlp_trainer/trainer -- --batch-size=128 --epochs=1 --chunk-size=500000 --table-id=final_taxi_encoded_mini
 ```
 
 

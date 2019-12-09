@@ -3,13 +3,10 @@ import logging
 import os
 import json
 
-import tensorflow as tf
-import trainer.model_loop as model
+import trainer.model as model
+
 # import trainer.model_tf as model_tf
 # import trainer.save_model as save_model
-
-import hypertune
-
 
 def train_and_evaluate(args):
     """
@@ -18,29 +15,23 @@ def train_and_evaluate(args):
     :return:
     """
 
-    # choose optimizer from input arguments
-    if args.optimizer.lower() == 'adam':
-        optimizer = tf.keras.optimizers.Adam
-    elif args.optimizer.lower() == 'nadam':
-        optimizer = tf.keras.optimizers.Nadam
-    elif args.optimizer.lower() == 'rmsprop':
-        optimizer = tf.keras.optimizers.RMSprop
-    elif args.optimizer.lower() == 'sgd':
-        optimizer = tf.keras.optimizers.SGD
-    else:
-        optimizer = None
 
     # format parameters from input arguments
     params = {
+        'hypertune': args.hypertune,
+        'distribute': args.distribute,
+        'data_source': args.data_source,
+        'distribute_strategy': args.distribute_strategy,
         'cycle_length': args.cycle_length,
+        'summary_write_steps': args.summary_write_steps,
+        'checkpoint_write_steps': args.checkpoint_write_steps,
+        'log_step_count_steps': args.log_step_count_steps,
         'dense_neurons_1': args.dense_neurons_1,
         'dense_neurons_2': args.dense_neurons_2,
         'dense_neurons_3': args.dense_neurons_3,
         'activation': args.activation,
-        'dropout_rate_1': args.dropout_rate_1,
-        'dropout_rate_2': args.dropout_rate_2,
-        'dropout_rate_3': args.dropout_rate_3,
-        'optimizer': optimizer,
+        'dropout_rate': float(args.dropout_rate),
+        'optimizer': args.optimizer,
         'learning_rate': args.learning_rate,
         'chunk_size': args.chunk_size,
         'batch_size': args.batch_size,
@@ -50,6 +41,9 @@ def train_and_evaluate(args):
         'kernel_initial_2': args.kernel_initial_2,
         'kernel_initial_3': args.kernel_initial_3
     }
+
+    if args.batch_size_float:
+        params['batch_size'] = int(args.batch_size_float)
 
     """Parse TF_CONFIG to cluster_spec and call run() method.
 
@@ -61,10 +55,11 @@ def train_and_evaluate(args):
         args (args): Input arguments.
     """
 
-    tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
-
+    # for ML ENGINE:
     tf_config = os.environ.get('TF_CONFIG')
-    tf.get_logger().info("NTC_DEBUG: Old TF_CONFIG: {}".format(tf_config))
+    job_name = None
+    task_index = 0
+    # tf.get_logger().info("NTC_DEBUG: Old TF_CONFIG: {}".format(tf_config))
     # If TF_CONFIG is not available run local.
     if tf_config:
         tf_config_json = json.loads(tf_config)
@@ -72,17 +67,17 @@ def train_and_evaluate(args):
         job_name = tf_config_json.get('task', {}).get('type')
         task_index = tf_config_json.get('task', {}).get('index')
 
-        tf_config_json["cluster"]["chief"] = cluster.get("master")
-        if cluster.get("master"):
-            del tf_config_json["cluster"]["master"]
-            cluster = tf_config_json.get('cluster')
+        # tf_config_json["cluster"]["chief"] = cluster.get("master")
+        # if cluster.get("master"):
+        #     del tf_config_json["cluster"]["master"]
+        #     cluster = tf_config_json.get('cluster')
 
-        # Map ML Engine master to chief for TF
-        if job_name == "master":
-            tf_config_json["task"]["type"] = 'chief'
-            job_name = 'chief'
-            os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
-        tf.get_logger().info("NTC_DEBUG: New TF_CONFIG: {}".format(tf_config_json))
+        # # Map ML Engine master to chief for TF
+        # if job_name == "master":
+        #     tf_config_json["task"]["type"] = 'chief'
+        #     job_name = 'chief'
+        #     os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
+        # tf.get_logger().info("NTC_DEBUG: New TF_CONFIG: {}".format(tf_config_json))
 
 
         # if job_name is not None or task_index is not None:
@@ -108,8 +103,39 @@ def train_and_evaluate(args):
         #                 task_index=task_index,
         #             )
 
+    # os.environ["TF_CONFIG"] = json.dumps({
+    #     "cluster": {
+    #         "chief": ["localhost:2222"]
+    #         # "worker": ["host1:port", "host2:port", "host3:port"],
+    #         # "ps": ["host4:port", "host5:port"]
+    #     },
+    #     "task": {"type": args.tf_task, "index": 0}
+    # })
 
-    return model.train_and_evaluate(args.table_id, args.job_dir, params=params)
+    if args.distribute is True:
+        return model.train_and_evaluate_dist(
+            args.table_id, 
+            args.job_dir, 
+            args.avro_bucket,
+            args.avro_prefix,
+            params=params,
+            job_name=job_name,
+            task_index=task_index,
+            num_workers=args.num_workers,
+            # hypertune=args.hypertune
+        )
+    else:
+        return model.train_and_evaluate_local(
+            args.table_id, 
+            args.job_dir, 
+            args.avro_bucket,
+            args.avro_prefix,
+            params=params,
+            job_name=job_name,
+            task_index=task_index,
+            num_workers=args.num_workers,
+            # hypertune=args.hypertune
+        )
 
     # model_tf.train_and_evaluate(args.table_id, params)
     # save_model.save_estimator_model(bucket_name=args.bucket, path=args.job_dir)
@@ -122,65 +148,51 @@ def train_and_evaluate(args):
     # )
 
 
-def tune(args):
-
-    logging.info('In tuning procedure...')
-
-    # choose optimizer from input arguments
-    if args.optimizer.lower() == 'adam':
-        optimizer = tf.keras.optimizers.Adam
-    elif args.optimizer.lower() == 'nadam':
-        optimizer = tf.keras.optimizers.Nadam
-    elif args.optimizer.lower() == 'rmsprop':
-        optimizer = tf.keras.optimizers.RMSprop
-    elif args.optimizer.lower() == 'sgd':
-        optimizer = tf.keras.optimizers.SGD
-    else:
-        optimizer = None
-
-    # format parameters from input arguments
-    params = {
-        'cycle_length': args.cycle_length,
-        'dense_neurons_1': args.dense_neurons_1,
-        'dense_neurons_2': args.dense_neurons_2,
-        'dense_neurons_3': args.dense_neurons_3,
-        'activation': args.activation,
-        'dropout_rate_1': args.dropout_rate_1,
-        'dropout_rate_2': args.dropout_rate_2,
-        'dropout_rate_3': args.dropout_rate_3,
-        'optimizer': optimizer,
-        'learning_rate': args.learning_rate,
-        'chunk_size': args.chunk_size,
-        'batch_size': args.batch_size,
-        'epochs': args.epochs,
-        'validation_freq': args.validation_freq,
-        'kernel_initial_1': args.kernel_initial_1,
-        'kernel_initial_2': args.kernel_initial_2,
-        'kernel_initial_3': args.kernel_initial_3
-    }
-
-    # train model and get history
-    history, mlp_model = model.train_mlp_batches(
-        args.table_id,
-        params=params
-    )
-
-    logging.info(history.history)
-
-    hpt = hypertune.HyperTune()
-    hpt.report_hyperparameter_tuning_metric(
-        hyperparameter_metric_tag='loss',
-        metric_value=float(history.history['loss'][0]),
-        global_step=100)
-
-    logging.info('Reported HP metric...')
-
-
 if __name__ == '__main__':
 
     # TODO: update argument defaults with hp tuning results
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--data-source',
+        type=str,
+        help='Get data from BigQuery Storiage API or avro files',
+        default='bigquery')
+    parser.add_argument(
+        '--distribute',
+        type=bool,
+        help='Whether to run the job in distributed mode',
+        default=False)
+    parser.add_argument(
+        '--distribute-strategy',
+        type=str,
+        help='Distribute strategy. Can be `parameter-server` or `multi-worker`',
+        default='multi-worker')
+    parser.add_argument(
+        '--hypertune',
+        type=bool,
+        help='Whether training is running in a hypertuning session',
+        default=False)
+    parser.add_argument(
+        '--num-workers',
+        type=int,
+        help='Number of workers in distribution strategy',
+        default=1)
+    parser.add_argument(
+        '--log-step-count-steps',
+        type=int,
+        help='Frequency in steps (batches) to log loss summary during training',
+        default=100)
+    parser.add_argument(
+        '--summary-write-steps',
+        type=int,
+        help='Steps (batches) to run before writing Tensorflow scalar summaries',
+        default=100)
+    parser.add_argument(
+        '--checkpoint-write-steps',
+        type=int,
+        help='Steps (batches) to run before writing Tensorflow training checkpoints',
+        default=500)
     parser.add_argument(
         '--table-id',
         type=str,
@@ -189,13 +201,15 @@ if __name__ == '__main__':
     parser.add_argument(
         '--avro-bucket',
         type=str,
-        help='GCS bucket name Avro files are stored in',
-        default='gcp-cert-demo-1')
+        help='Name of GCS bucket with avro data',
+        default='gcp-cert-demo-1'
+    )
     parser.add_argument(
-        '--avro-path',
+        '--avro-prefix',
         type=str,
-        help='GCS path prefix for data',
-        default='data/avro/1_pct/')
+        help='Path prefix to avro data in GCS bucket',
+        default='data/avro/1_pct'
+    )
     parser.add_argument(
         '--task',
         type=str,
@@ -210,7 +224,7 @@ if __name__ == '__main__':
         '--job-dir',
         type=str,
         help='Directory to create in bucket to write history, logs, and export model',
-        default='model_output')
+        default='model')
     parser.add_argument(
         '--cycle-length',
         type=int,
@@ -237,25 +251,30 @@ if __name__ == '__main__':
         help='Activation function, default=relu',
         default='relu')
     parser.add_argument(
-        '--dropout-rate-1',
+        '--dropout-rate',
         type=float,
-        help='Dropout rate for first model layer, default=0.1',
+        help='Dropout rate for all model layers, default=0.1',
         default=0.1)
-    parser.add_argument(
-        '--dropout-rate-2',
-        type=float,
-        help='Dropout rate for second model layer, default=0.1',
-        default=0.1)
-    parser.add_argument(
-        '--dropout-rate-3',
-        type=float,
-        help='Dropout rate for third model layer, default=0.1',
-        default=0.1)
+    # parser.add_argument(
+    #     '--dropout-rate-1',
+    #     type=float,
+    #     help='Dropout rate for first model layer, default=0.1',
+    #     default=0.1)
+    # parser.add_argument(
+    #     '--dropout-rate-2',
+    #     type=float,
+    #     help='Dropout rate for second model layer, default=0.1',
+    #     default=0.1)
+    # parser.add_argument(
+    #     '--dropout-rate-3',
+    #     type=float,
+    #     help='Dropout rate for third model layer, default=0.1',
+    #     default=0.1)
     parser.add_argument(
         '--optimizer',
         type=str,
         help='Optimizer function, default=adam',
-        default='Adam')
+        default='adam')
     parser.add_argument(
         '--learning-rate',
         type=float,
@@ -266,6 +285,10 @@ if __name__ == '__main__':
         type=int,
         help='Batch size, default=64',
         default=64)
+    parser.add_argument(
+        '--batch-size-float',
+        type=float,
+        help='Batch size as float (for hypertuning only), default=64')
     parser.add_argument(
         '--chunk-size',
         type=int,
@@ -279,8 +302,8 @@ if __name__ == '__main__':
     parser.add_argument(
         '--validation-freq',
         type=int,
-        help='Validation frequency, default=5',
-        default=5)
+        help='Validation frequency, default=1',
+        default=1)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,

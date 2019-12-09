@@ -10,7 +10,7 @@ REQUIRED_PACKAGES = [
 ]
 
 setup(
-    name='trainer',
+    name='mlp_trainer',
     version='0.1',
     install_requires=REQUIRED_PACKAGES,
     packages=find_packages(),

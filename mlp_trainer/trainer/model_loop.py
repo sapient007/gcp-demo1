@@ -1,5 +1,6 @@
 import time
 from typing import Tuple
+from os import walk
 
 import tensorflow as tf
 # import tensorflow.keras.backend as K
@@ -48,7 +49,7 @@ def input_fn_train(dist=False, strategy=None):
         global_table_id,
         'train',
         global_params['batch_size'],
-        global_params['epochs'],
+        0,
         global_params['chunk_size'],
         global_params['cycle_length']
     )
@@ -62,9 +63,9 @@ def input_fn_eval(dist=False, strategy=None):
     # return tf.data.Dataset.from_tensors(({"year_norm":[1.]}, [1.]))
     dataset = generator.get_data(
         global_table_id,
-        'validation',
+        'test',
         global_params['batch_size'],
-        global_params['epochs'],
+        0,
         global_params['chunk_size'],
         global_params['cycle_length']
     )
@@ -84,7 +85,7 @@ def get_session_config(job_name: str, task_index: int):
     return None
 
 
-def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', task_index=-1):
+def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', task_index=-1, hypertune=False):
     """
     TODO: description
     :param table_id:
@@ -98,7 +99,9 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
     global_params = params
 
     # strategy = tf.distribute.MirroredStrategy()
-    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy(
+        communication=tf.distribute.experimental.CollectiveCommunication.AUTO
+    )
     tf.get_logger().info("NTC_DEBUG: Number of devices in strategy: {}".format(strategy.num_replicas_in_sync))
 
     # tf.summary.trace_on(
@@ -119,7 +122,7 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
             return per_example_loss, tf.nn.compute_average_loss(per_example_loss, global_batch_size=global_params['batch_size'])
 
         train_eval_ops = [
-            tf.keras.metrics.BinaryAccuracy(),
+            tf.keras.metrics.BinaryAccuracy(name='train_accuracy'),
             tf.keras.metrics.Precision(),
             tf.keras.metrics.Recall(),
         ]
@@ -201,6 +204,12 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
         def distributed_test_step(dataset_inputs):
             return strategy.experimental_run_v2(test_step, args=(dataset_inputs,))
 
+        writer = tf.summary.create_file_writer(
+            "{}/logs".format(job_dir),
+            max_queue=500,
+        )
+
+        epoch_start = time.process_time()
         for epoch in range(global_params['epochs']):
             tf.get_logger().info("Epoch {}: Starting training".format(epoch+1))
             # TRAIN LOOP
@@ -211,12 +220,19 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
             for x in train_dist_dataset:
                 total_loss += distributed_train_step(x)
                 num_batches += 1
-                if num_batches % 100 == 0:
+
+                if num_batches % global_params['summary_write_steps'] == 0:
+                    temp_loss = total_loss / num_batches
+
+                    if hypertune is False:
+                        with writer.as_default():
+                            tf.summary.scalar("epoch_{}_train_loss".format(epoch+1), temp_loss, step=num_batches)
+
                     end = time.process_time()
                     tf.get_logger().info("Epoch {}: Step {} training complete. Loss: {}; Time elapsed: {} ({} steps/sec)".format(
                         epoch+1, 
                         num_batches, 
-                        total_loss / num_batches,
+                        temp_loss,
                         round(end - start, 2),
                         round(100 / (end - start), 2)
                         )
@@ -233,7 +249,7 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
             for x in test_dist_dataset:
                 distributed_test_step(x)
                 num_test_batches += 1
-                if num_test_batches % 100 == 0:
+                if num_test_batches % global_params['summary_write_steps'] == 0:
                     end = time.process_time()
                     tf.get_logger().info("Epoch {}: Test step {} complete. Time elapsed: {} ({} steps/sec)".format(
                         epoch+1, 
@@ -245,9 +261,10 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
             
             tf.get_logger().info("Epoch {}: Testing finished in {} steps".format(epoch+1, num_test_batches))
 
-            tf.get_logger().info("Epoch {}: Saving checkpoint".format(epoch+1))
-            checkpoint_mgr.save(epoch+1)
-            tf.get_logger().info("Epoch {}: Checkpoint saved".format(epoch+1))
+            if hypertune is False:
+                tf.get_logger().info("Epoch {}: Saving checkpoint".format(epoch+1))
+                checkpoint_mgr.save(epoch+1)
+                tf.get_logger().info("Epoch {}: Checkpoint saved".format(epoch+1))
 
             outputs = {
                 'epoch': epoch+1,
@@ -256,15 +273,41 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
                 'test_loss': test_loss.result()
             }
 
+            with writer.as_default():
+                tf.summary.scalar("train_loss", train_loss, step=epoch+1)
+                tf.summary.scalar("test_loss", test_loss.result(), step=epoch+1)
+
             test_loss.reset_states()
             
             for op in train_eval_ops:
-                outputs["train_{}".format(op.name)] = op.result()
+                scalar_label = "train_{}".format(op.name)
+                outputs[scalar_label] = op.result()
+                with writer.as_default():
+                    tf.summary.scalar(scalar_label, op.result(), step=epoch+1)
                 op.reset_states()
 
             for op in test_eval_ops:
-                outputs["test_{}".format(op.name)] = op.result()
+                scalar_label = "test_{}".format(op.name)
+                outputs[scalar_label] = op.result()
+                with writer.as_default():
+                    tf.summary.scalar(scalar_label, op.result(), step=epoch+1)
                 op.reset_states()
 
-            tf.get_logger().info("Epoch {} results: {}".format(epoch, outputs))
-        # return
+            writer.flush()
+
+            tf.get_logger().info("Epoch {} results: {}".format(epoch+1, outputs))
+
+            epoch_end = time.process_time()
+            tf.get_logger().info("Epoch {} elapsed time: {}".format(epoch+1, epoch_end - epoch_start))
+            epoch_start = time.process_time()
+
+        for (dirpath, dirnames, filenames) in walk(job_dir):
+            tf.get_logger().info("path: {}; dirs: {}; files: {}".format(dirpath, dirnames, filenames))
+
+
+        if hypertune is False: 
+            tf.get_logger().info("Saving model")
+            model.save(job_dir, save_format="tf")
+            tf.get_logger().info("Model saved")
+            # tf.saved_model.save(model, '{}/saved_model'.format(job_dir))
+        

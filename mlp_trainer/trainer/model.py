@@ -1,73 +1,19 @@
 import math
+import datetime
 from typing import Tuple
 
 import tensorflow as tf
-# import tensorflow.keras.backend as K
-# from tensorflow.python.client import device_lib
 
-# from talos.model.normalizers import lr_normalizer
-
+import trainer.base_model as base_model
 import trainer.data.bigquery as data
 import trainer.data.bigquery_generator as generator
 
 
-def base_model() -> tf.keras.Sequential:
-    return tf.keras.Sequential([
-        tf.keras.layers.Dense(
-            global_params['dense_neurons_1'],
-            input_shape=(26,),
-            kernel_initializer=global_params['kernel_initial_1']
-        ),
-        tf.keras.layers.BatchNormalization(axis=1),
-        tf.keras.layers.Activation(activation=global_params['activation']),
-        tf.keras.layers.Dropout(float(global_params['dropout_rate_1'])),
-        tf.keras.layers.Dense(
-            global_params['dense_neurons_2'],
-            kernel_initializer=global_params['kernel_initial_2'],
-            activation=global_params['activation']
-        ),
-        tf.keras.layers.Dropout(float(global_params['dropout_rate_2'])),
-        tf.keras.layers.Dense(
-            global_params['dense_neurons_3'],
-            kernel_initializer=global_params['kernel_initial_3'],
-            activation=global_params['activation']
-        ),
-        tf.keras.layers.Dense(
-            1,
-            activation='sigmoid'
-        )
-    ])
-
-# def create_mlp(params):
-#     """
-#     :param params:
-#     :return:
-#     """
-
-#     # reset the tensorflow backend session.
-#     # K.clear_session()
-
-#     # define the model with variable hyperparameters.
-#     mlp_model = base_model()
-
-#     # num_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
-#     # if num_gpus > 1:
-#     #     mlp_model = tf.keras.utils.multi_gpu_model(mlp_model, num_gpus)
-
-#     # compile with tensorflow optimizer.
-#     mlp_model.compile(
-#         # optimizer=params['optimizer'](lr=lr_normalizer(params['learning_rate'], params['optimizer'])),
-#         optimizer=tf.keras.optimizers.Adam(learning_rate=params['learning_rate']),
-#         # loss='binary_crossentropy',
-#         loss=tf.keras.losses.BinaryCrossentropy(),
-#         metrics=['accuracy']
-#     )
-
-#     return mlp_model
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
 
 def model_fn(features, labels, mode):
-    model = base_model()
+    model = base_model.get(global_params)
     # if mode == tf.estimator.ModeKeys.PREDICT:
     #     # predictions = {'logits': logits}
     #     return tf.estimator.EstimatorSpec(labels=labels, predictions=preds)
@@ -87,34 +33,48 @@ def model_fn(features, labels, mode):
     if mode == tf.estimator.ModeKeys.EVAL:
         acc = tf.keras.metrics.BinaryAccuracy()
         acc.update_state(labels, preds)
-        eval_ops['accuracy'] = acc
+        eval_ops['test_accuracy'] = acc
         precision = tf.keras.metrics.Precision()
         precision.update_state(labels, preds)
-        eval_ops['precision'] = precision
+        eval_ops['test_precision'] = precision
         recall = tf.keras.metrics.Recall()
         recall.update_state(labels, preds)
-        eval_ops['recall'] = recall
+        eval_ops['test_recall'] = recall
         false_negs = tf.keras.metrics.FalseNegatives()
         false_negs.update_state(labels, preds)
-        eval_ops['false_negatives'] = false_negs
+        eval_ops['test_false_negatives'] = false_negs
         false_pos = tf.keras.metrics.FalsePositives()
         false_pos.update_state(labels, preds)
-        eval_ops['false_positives'] = false_pos
+        eval_ops['test_false_positives'] = false_pos
         true_neg = tf.keras.metrics.TrueNegatives()
         true_neg.update_state(labels, preds)
-        eval_ops['true_negatives'] = true_neg
+        eval_ops['test_true_negatives'] = true_neg
         true_pos = tf.keras.metrics.TruePositives()
         true_pos.update_state(labels, preds)
-        eval_ops['true_positives'] = true_pos
+        eval_ops['test_true_positives'] = true_pos
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=loss,
+            eval_metric_ops=eval_ops,
+        )
 
     train_op = None
     if training:
-        optimizer = tf.optimizers.Adam(
-            learning_rate=global_params['learning_rate']
-        )
-        optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(
-            optimizer
-        )
+        if global_params['optimizer'] == 'adam':
+            optimizer = tf.optimizers.Adam(
+                learning_rate=global_params['learning_rate']
+            )
+        elif global_params['optimizer'] == 'rmsprop':
+            optimizer = tf.optimizers.RMSprop(
+                learning_rate=global_params['learning_rate']
+            )
+        elif global_params['optimizer'] == 'sgd':
+            optimizer = tf.optimizers.SGD(
+                learning_rate=global_params['learning_rate']
+            )
+        # optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(
+        #     optimizer
+        # )
         optimizer.iterations = tf.compat.v1.train.get_or_create_global_step()
 
         update_ops = model.get_updates_for(None) + model.get_updates_for(features)
@@ -126,58 +86,113 @@ def model_fn(features, labels, mode):
 
     return tf.estimator.EstimatorSpec(
         mode=mode,
-        predictions=preds,
+        # predictions=preds,
         loss=loss,
-        eval_metric_ops=eval_ops,
-        export_outputs={
-            "classifcation_output": tf.estimator.export.ClassificationOutput(scores=preds)
-        },
+        # export_outputs={
+        #     "classifcation_output": tf.estimator.export.ClassificationOutput(scores=preds)
+        # },
         train_op=train_op
     )
 
-global_table_id = ""
-global_params = {}
 
 @tf.function
-def input_fn_train():
-    # return tf.data.Dataset.from_tensors(({"year_norm":[1.]}, [1.]))
+def input_fn_train_avro():
+    dataset = generator.get_data(
+        BUCKET_NAME,
+        PREFIX,
+        'train',
+        global_params['batch_size'],
+        global_params['epochs'],
+        global_params['chunk_size'],
+        global_params['cycle_length'],
+        NUM_WORKERS,
+        TASK_INDEX,
+    )
+    return dataset
+
+
+@tf.function
+def input_fn_eval_avro():
+    dataset = generator.get_data(
+        BUCKET_NAME,
+        PREFIX,
+        'test',
+        global_params['batch_size'],
+        global_params['epochs'],
+        global_params['chunk_size'],
+        global_params['cycle_length'],
+        NUM_WORKERS,
+        TASK_INDEX,
+    )
+    return dataset
+
+
+@tf.function
+def input_fn_train_bq():
     dataset = generator.get_data(
         global_table_id,
         'train',
         global_params['batch_size'],
         global_params['epochs'],
         global_params['chunk_size'],
-        global_params['cycle_length']
+        global_params['cycle_length'],
+        NUM_WORKERS,
+        TASK_INDEX,
     )
     return dataset
 
 
 @tf.function
-def input_fn_eval():
-    # return tf.data.Dataset.from_tensors(({"year_norm":[1.]}, [1.]))
+def input_fn_eval_bq():
     dataset = generator.get_data(
         global_table_id,
-        'validation',
+        'test',
         global_params['batch_size'],
         global_params['epochs'],
         global_params['chunk_size'],
-        global_params['cycle_length']
+        global_params['cycle_length'],
+        NUM_WORKERS,
+        TASK_INDEX,
     )
     return dataset
-
 
 def get_session_config(job_name: str, task_index: int):
     if job_name == 'chief':
         return tf.compat.v1.ConfigProto(device_filters=['/job:ps', '/job:chief'])
+    if job_name == 'ps':
+        return tf.compat.v1.ConfigProto(device_filters=['/job:ps', '/job:chief', '/job:worker'])
     elif job_name == 'worker':
         return tf.compat.v1.ConfigProto(device_filters=[
-            '/job:ps',
             '/job:worker/task:%d' % task_index
         ])
     return None
 
 
-def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', task_index=-1):
+def make_job_output(job_dir):
+    return "{}/{}".format(
+        job_dir,
+        datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    )
+
+
+global_table_id = ""
+global_params = {}
+JOB_NAME = None
+TASK_INDEX = -1
+NUM_WORKERS = 1
+BUCKET_NAME = ''
+PREFIX = ''
+
+def train_and_evaluate_dist(
+    table_id: str,
+    job_dir: str,
+    bucket_name: str,
+    prefix: str,
+    params: dict,
+    job_name=None,
+    task_index=-1,
+    num_workers=1,
+):
     """
     TODO: description
     :param table_id:
@@ -187,188 +202,166 @@ def train_and_evaluate(table_id: str, job_dir: str, params: dict, job_name='', t
 
     global global_table_id
     global global_params
+    global TASK_INDEX
+    global NUM_WORKERS
+    global JOB_NAME
+    global BUCKET_NAME
+    global PREFIX
     global_table_id = table_id
+    # params['batch_size'] = params['batch_size'] * NUM_WORKERS
     global_params = params
+    JOB_NAME = job_name
+    TASK_INDEX = task_index
+    NUM_WORKERS = num_workers
+    BUCKET_NAME = bucket_name
+    PREFIX = prefix
 
     # strategy = tf.distribute.MirroredStrategy()
-    strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+
+    # strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+    strategy = tf.distribute.experimental.ParameterServerStrategy()
+
     tf.get_logger().info("NTC_DEBUG: Number of devices in strategy: {}".format(strategy.num_replicas_in_sync))
 
-    # tf.summary.trace_on(
-    #     graph=True,
-    #     profiler=True
-    # )
-    
-    config = tf.estimator.RunConfig(
-        log_step_count_steps=5,
-        # save_summary_steps=100,
-        # save_checkpoints_steps=5,
-        session_config=get_session_config(job_name, task_index),
-        train_distribute=strategy,
-        # eval_distribute=strategy
+    tf.summary.trace_on(
+        graph=False,
+        profiler=False
     )
 
-    classifier = tf.estimator.Estimator(
-        model_fn=model_fn, model_dir=job_dir, config=config)
-    return tf.estimator.train_and_evaluate(
-        classifier,
-        train_spec=tf.estimator.TrainSpec(
-            input_fn=input_fn_train, 
-            max_steps=math.ceil(
+    train_steps_per_epoch = math.ceil(
                 data.get_sample_count(
                     table_id,
                     partition='train'
                 ) / params['batch_size']
-            ) * params['epochs']
+            )
+    
+    config = tf.estimator.RunConfig(
+        log_step_count_steps=global_params['log_step_count_steps'],
+        save_summary_steps=global_params['summary_write_steps'],
+        # Evaluate every quarter through the epoch
+        save_checkpoints_steps=math.floor(
+            train_steps_per_epoch*.25
+        ),
+        # session_config=get_session_config(job_name, task_index),
+        train_distribute=strategy,
+        eval_distribute=strategy
+    )
+
+    classifier = tf.estimator.Estimator(
+        model_fn=model_fn, model_dir=make_job_output(job_dir), config=config)
+
+    if global_params['data_source'] == 'bigquery':
+        input_fn_train = input_fn_train_bq
+        input_fn_eval = input_fn_eval_bq
+    elif global_params['data_source'] == 'avro':
+        input_fn_train = input_fn_train_avro
+        input_fn_eval = input_fn_eval_avro
+
+    tf.estimator.train_and_evaluate(
+        classifier,
+        train_spec=tf.estimator.TrainSpec(
+            input_fn=input_fn_train,
+            max_steps=train_steps_per_epoch * params['epochs']
         ),
         eval_spec=tf.estimator.EvalSpec(
-            input_fn=input_fn_eval, 
+            input_fn=input_fn_eval,
             steps=math.ceil(
                 data.get_sample_count(
                     table_id,
                     partition='validation'
                 ) / params['batch_size']
-            )
+            ),
+            # throttle_secs=60,
         )
     )
 
-    # estimator = tf.keras.estimator.model_to_estimator(
-    #     keras_model=mlp_model,
-    #     config=config
-    # )
 
-    # # best = tf.estimator.BestExporter()
+def train_and_evaluate_local(
+    table_id: str,
+    job_dir: str,
+    bucket_name: str,
+    prefix: str,
+    params: dict,
+    job_name=None,
+    task_index=-1,
+    num_workers=1,
+):
+    """
+    TODO: description
+    :param table_id:
+    :param params:
+    :return:
+    """
 
-    # results = tf.estimator.train_and_evaluate(
-    #     estimator,
-    #     train_spec=tf.estimator.TrainSpec(input_fn=input_fn_train),
-    #     eval_spec=tf.estimator.EvalSpec(
-    #         input_fn=input_fn_eval,
-    #         # exporters=[best]
-    #     )
-    # )
+    global global_table_id
+    global global_params
+    global TASK_INDEX
+    global NUM_WORKERS
+    global JOB_NAME
+    global BUCKET_NAME
+    global PREFIX
+    global_table_id = table_id
+    # params['batch_size'] = params['batch_size'] * NUM_WORKERS
+    global_params = params
+    JOB_NAME = job_name
+    TASK_INDEX = task_index
+    NUM_WORKERS = num_workers
+    BUCKET_NAME = bucket_name
+    PREFIX = prefix
 
-    # print(results)
+    tf.summary.trace_on(
+        graph=False,
+        profiler=False
+    )
 
+    train_steps_per_epoch = math.ceil(
+                data.get_sample_count(
+                    table_id,
+                    partition='train'
+                ) / params['batch_size']
+            )
 
-# global_epochs = 1
-# global_batch_size = 1024
-# global_chunk_size = 5000000
-# global_cycle_length = 4
-# global_table_id = ""
+    checkpoint_steps = math.floor(
+            train_steps_per_epoch*.5
+    )
 
-# This is for distributed datasets
-# @tf.function
-# def train_data]_fn(input_context):
-#     batch_size = input_context.get_per_replica_batch_size(global_batch_size)
-#     train_data = tf.data.Dataset.from_generator(
-#         bq_stream_generator,
-#         (tf.string, tf.string),
-#         # output_shapes=(tf.TensorShape([]), tf.TensorShape([])),
-#         args=(global_table_id, 'train')
-#     ).interleave(
-#         lambda session, stream:
-#         tf.data.Dataset.from_generator(
-#             get_reader_for_stream,
-#             (tf.float64, tf.uint16),
-#             output_shapes=(tf.TensorShape([None]), tf.TensorShape([])),
-#             args=(session, stream)
-#         ).prefetch(buffer_size=global_chunk_size),
-#         num_parallel_calls=tf.data.experimental.AUTOTUNE,
-#         cycle_length=global_cycle_length
-#     ).batch(global_batch_size).prefetch(
-#         math.floor(global_chunk_size / global_batch_size)
-#     ).repeat(global_epochs)
-#     return train_data.shard(input_context.num_input_pipelines, input_context.input_pipeline_id)
-# @tf.function
-# def train_step(batch):
-#     return global_mlp_model.train_on_batch(batch)
+    if checkpoint_steps < 1:
+        checkpoint_steps = train_steps_per_epoch
+    
+    if global_params['hypertune'] is True:
+        checkpoint_steps = train_steps_per_epoch
 
-# def train_mlp_batches(table_id: str, avro_bucket: str, avro_path: str, params: dict):
-#     """
-#     TODO: description
-#     :param table_id:
-#     :param params:
-#     :return:
-#     """
+    config = tf.estimator.RunConfig(
+        log_step_count_steps=global_params['log_step_count_steps'],
+        save_summary_steps=global_params['summary_write_steps'],
+        # Evaluate halfway through the epoch
+        save_checkpoints_steps=checkpoint_steps,
+    )
 
-#     global global_table_id
-#     global global_mlp_model
-#     global_table_id = table_id
+    classifier = tf.estimator.Estimator(
+        model_fn=model_fn, model_dir=make_job_output(job_dir), config=config)
 
-#     # create model and define early stopping
-#     # https://www.tensorflow.org/guide/distributed_training#multiworkermirroredstrategy
-#     # strategy = tf.distribute.experimental.ParameterServerStrategy(
-#     #     tf.distribute.experimental.CollectiveCommunication.AUTO)
-#     # strategy = tf.distribute.MirroredStrategy()
-#     strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
-#     # inputs = strategy.experimental_distribute_datasets_from_function(train_data_fn)
-#     #  for batch in inputs:
-#     #     # print(batch)
-#     #     # replica_results = strategy.experimental_run_v2(train_step, args=(batch))
-#     #     replica_results = strategy.experimental_run_v2(global_mlp_model.train_on_batch, args=(batch))
-#     #     # print(replica_results)
-#         # replica_results = strategy.experimental_run_v2(mlp_model.fit,
-#         #     args=(
-#         #         batch,
-#         #         epochs=params['epochs'],
-#         #         verbose=2,
-#         #         # callbacks=[es, tensorboard_callback],
-#         #         steps_per_epoch=math.ceil(
-#         #             get_sample_count(
-#         #                 table_id,
-#         #                 partition='train'
-#         #             ) / params['batch_size']
-#         #         )
-#         #     )
-#         # )
+    if global_params['data_source'] == 'bigquery':
+        input_fn_train = input_fn_train_bq
+        input_fn_eval = input_fn_eval_bq
+    elif global_params['data_source'] == 'avro':
+        input_fn_train = input_fn_train_avro
+        input_fn_eval = input_fn_eval_avro
 
-#     with strategy.scope():
-#         global_mlp_model = create_mlp(params)
-
-#     train_data = generator.get_data(table_id,
-#                                     'train',
-#                                     params['batch_size'],
-#                                     params['epochs'],
-#                                     params['chunk_size'],
-#                                     params['cycle_length'])
-
-#     validation_data = generator.get_data(table_id,
-#                                          'validation',
-#                                          params['batch_size'],
-#                                          params['epochs'],
-#                                          params['chunk_size'],
-#                                          params['cycle_length'])
-
-
-#     es = tf.keras.callbacks.EarlyStopping(
-#         monitor='val_loss',
-#         mode='min',
-#         verbose=1,
-#         patience=10,
-#         restore_best_weights=True
-#     )
-
-#     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-#     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, profile_batch=100, write_images=True, write_graph=True, update_freq='epoch', histogram_freq=1)
-
-#     # # Step 5: Return the history output and synced back cpu model.
-#     history = global_mlp_model.fit(train_data,
-#                             epochs=params['epochs'],
-#                             verbose=1,
-#                             # callbacks=[es, tensorboard_callback],
-#                             # steps_per_epoch=1,
-#                             steps_per_epoch=math.ceil(
-#                                 data.get_sample_count(
-#                                     table_id,
-#                                     partition='train'
-#                                 ) / params['batch_size']),
-#                             validation_data=validation_data,
-#                             validation_steps=math.ceil(
-#                                 data.get_sample_count(
-#                                     table_id,
-#                                     partition='validation'
-#                                 ) / params['batch_size']),
-#                             validation_freq=params['validation_freq'],
-#                             )
-#     return history, global_mlp_model
+    tf.estimator.train_and_evaluate(
+        classifier,
+        train_spec=tf.estimator.TrainSpec(
+            input_fn=input_fn_train,
+            max_steps=train_steps_per_epoch * params['epochs']
+        ),
+        eval_spec=tf.estimator.EvalSpec(
+            input_fn=input_fn_eval,
+            steps=math.ceil(
+                data.get_sample_count(
+                    table_id,
+                    partition='validation'
+                ) / params['batch_size']
+            ),
+            # throttle_secs=60,
+        )
+    )
