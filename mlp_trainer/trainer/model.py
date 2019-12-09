@@ -6,8 +6,8 @@ import tensorflow as tf
 
 import trainer.base_model as base_model
 import trainer.data.bigquery as data
-import trainer.data.bigquery_generator as generator
-
+import trainer.data.bigquery_generator as bq_generator
+import trainer.data.avro as avro_generator
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
@@ -97,7 +97,7 @@ def model_fn(features, labels, mode):
 
 @tf.function
 def input_fn_train_avro():
-    dataset = generator.get_data(
+    dataset = avro_generator.get_data(
         BUCKET_NAME,
         PREFIX,
         'train',
@@ -113,7 +113,7 @@ def input_fn_train_avro():
 
 @tf.function
 def input_fn_eval_avro():
-    dataset = generator.get_data(
+    dataset = avro_generator.get_data(
         BUCKET_NAME,
         PREFIX,
         'test',
@@ -129,7 +129,7 @@ def input_fn_eval_avro():
 
 @tf.function
 def input_fn_train_bq():
-    dataset = generator.get_data(
+    dataset = bq_generator.get_data(
         global_table_id,
         'train',
         global_params['batch_size'],
@@ -144,7 +144,7 @@ def input_fn_train_bq():
 
 @tf.function
 def input_fn_eval_bq():
-    dataset = generator.get_data(
+    dataset = bq_generator.get_data(
         global_table_id,
         'test',
         global_params['batch_size'],

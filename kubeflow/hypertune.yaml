@@ -6,7 +6,7 @@ metadata:
 spec:
   parallelTrialCount: 11
   maxTrialCount: 410
-  maxFailedTrialCount: 3
+  maxFailedTrialCount: 100
   objective:
     type: maximize
     goal: 0.99
