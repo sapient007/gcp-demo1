@@ -3,14 +3,17 @@ from setuptools import setup
 
 
 REQUIRED_PACKAGES = [
-    'urllib3',
     'google-cloud-bigquery-storage[pandas,fastavro]==0.7.0',
-    'gcsfs==0.3.1',
-    'cloudml-hypertune==0.1.0.dev5'
+    'google-cloud-bigquery==1.22.0',
+    'google-cloud-storage==1.23.0',
+    'python-snappy==0.5.4',
+    'kfp==0.1.35',
+    'pytz>=2019.0,<2020'
+    'tfa-nightly'
 ]
 
 setup(
-    name='trainer',
+    name='mlp_trainer',
     version='0.1',
     install_requires=REQUIRED_PACKAGES,
     packages=find_packages(),
