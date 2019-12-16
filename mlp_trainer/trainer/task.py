@@ -131,17 +131,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--distribute',
         type=bool,
-        help='Whether to run the job in distributed mode',
+        help='Whether to run the job in distributed mode. Default: False',
         default=False)
     parser.add_argument(
         '--distribute-strategy',
         type=str,
-        help='Distribute strategy. Can be `parameter-server` or `multi-worker`',
+        help='Distribute strategy. Can be `parameter-server` or `multi-worker`. Default: multi-worker',
         default='multi-worker')
     parser.add_argument(
         '--hypertune',
         type=bool,
-        help='Whether training is running in a hypertuning session',
+        help='Whether training is running in a hypertuning session. Default: False',
         default=False)
     parser.add_argument(
         '--num-workers',
@@ -151,22 +151,17 @@ if __name__ == '__main__':
     parser.add_argument(
         '--log-step-count-steps',
         type=int,
-        help='Frequency in steps (batches) to log loss summary during training',
+        help='Frequency in steps (batches) to log loss summary during training. Default: 100',
         default=100)
     parser.add_argument(
         '--summary-write-steps',
         type=int,
-        help='Steps (batches) to run before writing Tensorflow scalar summaries',
+        help='Steps (batches) to run before writing Tensorflow scalar summaries. Default: 100',
         default=100)
-    # parser.add_argument(
-    #     '--checkpoint-write-steps',
-    #     type=int,
-    #     help='Steps (batches) to run before writing Tensorflow training checkpoints',
-    #     default=500)
     parser.add_argument(
         '--table-id',
         type=str,
-        help='BigQuery table containing dataset',
+        help='BigQuery table optionally containing dataset. Default: finaltaxi_encoded_sampled_small',
         default='finaltaxi_encoded_sampled_small')
     parser.add_argument(
         '--avro-bucket',
@@ -183,107 +178,97 @@ if __name__ == '__main__':
     parser.add_argument(
         '--task',
         type=str,
-        help='train, tune, or save',
+        help='train or save. Default: train',
         default='train')
-    parser.add_argument(
-        '--bucket',
-        type=str,
-        help='Bucket name to write history and export model',
-        default='gcp-cert-demo-1')
     parser.add_argument(
         '--job-dir',
         type=str,
-        help='Directory to create in bucket to write history, logs, and export model',
+        help='Location to write history, logs, and export model. Can be a GCS (gs://..) URI. Default: model',
         default='model')
     parser.add_argument(
         '--no-generated-job-path',
         action='store_false',
-        help='Do not add a path suffix on --job-dir with the date and time',
+        help='Do not add a path suffix to --job-dir with the date and time',
     )
     parser.add_argument(
         '--cycle-length',
         type=int,
-        help='The number of input elements that will be processed concurrently',
+        help='The number of input elements that will be processed concurrently. Should be set to the number of available CPUs. Default: 8',
         default=8)
     parser.add_argument(
         '--dense-neurons-1',
         type=int,
-        help='Number of neurons in first model layer, default=64',
+        help='Number of neurons in first model layer. Default: 64',
         default=64)
     parser.add_argument(
         '--dense-neurons-2',
         type=int,
-        help='Number of neurons in second model layer, default=32',
+        help='Number of neurons in second model layer. Default: 32',
         default=32)
     parser.add_argument(
         '--dense-neurons-3',
         type=int,
-        help='Number of neurons in third model layer, default=8',
+        help='Number of neurons in third model layer. Default: 16',
         default=16)
     parser.add_argument(
         '--activation',
         type=str,
-        help='Activation function, default=relu',
+        help='Activation function. Default: relu',
         default='relu')
     parser.add_argument(
         '--dropout-rate',
         type=float,
-        help='Dropout rate for all model layers, default=0.1',
+        help='Dropout rate for all model layers. Default: 0.1',
         default=0.1)
     parser.add_argument(
         '--optimizer',
         type=str,
-        help='Optimizer function, default=adam',
+        help='Optimizer function. Default: adam',
         default='adam')
     parser.add_argument(
         '--learning-rate',
         type=float,
-        help='Learning rate, default=0.01',
+        help='Learning rate. Default: 0.01',
         default=0.01)
     parser.add_argument(
         '--batch-size',
         type=int,
-        help='Batch size, default=64',
-        default=1024)
+        help='Training batch size. Default: 102400',
+        default=102400)
     parser.add_argument(
         '--batch-size-float',
         type=float,
-        help='Batch size as float (for hypertuning only), default=64')
-    parser.add_argument(
-        '--chunk-size',
-        type=int,
-        help='Chunk size to load training data, default=200000',
-        default=200000)
+        help='Batch size as float (for hypertuning only, do not use)')
     parser.add_argument(
         '--epochs',
         type=int,
-        help='Number of epochs to train, default=3',
+        help='Number of epochs to train. Default: 3',
         default=3)
     parser.add_argument(
         '--validation-freq',
         type=int,
-        help='Validation frequency, default=1',
+        help='Validation frequency. Default: 1',
         default=1)
     parser.add_argument(
         '--kernel-initial-1',
         type=str,
-        help='Kernel initializer for first model layer, default=normal',
+        help='Kernel initializer for first model layer. Default: normal',
         default='normal')
     parser.add_argument(
         '--kernel-initial-2',
         type=str,
-        help='Kernel initializer for second model layer, default=normal',
+        help='Kernel initializer for second model layer. Default: normal',
         default='normal')
     parser.add_argument(
         '--kernel-initial-3',
         type=str,
-        help='Kernel initializer for third model layer, default=normal',
+        help='Kernel initializer for third model layer. Default: normal',
         default='normal')
     args, _ = parser.parse_known_args()
 
-    if args.task in ['train', 'tune']:
+    if args.task in ['train']:
         train_and_evaluate(args)
     elif args.task in 'save':
         save_model(args)
     else:
-        logging.error('--task must be \'train\', \'tune\', or \'save\'')
+        logging.error('--task must be \'train\' or \'save\'')
