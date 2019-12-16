@@ -18,16 +18,60 @@ The job processes more than 250 GB of internal data. Using 6 n1-highmem-4 instan
 
 In addition to the [Cloud Dataflow Runner options](https://beam.apache.org/documentation/runners/dataflow/#pipeline-options), these options can be customized:
 
-- `--outputDataset`: Bigquery output dataset. Default: chicagotaxi
-- `--outputTable`: Bigquery output table. Default: finaltaxi_encoded
-- `--outputTableSpec`: Bigquery output tablespec. Default: chicagotaxi.finaltaxi_encoded
-- `--inputTableSpec`: Bigquery input tablespec. Default: bigquery-public-data:chicago_taxi_trips.taxi_trips
-- `--mlPartitionTrainWeight`: Weight to apply to random partitioning of training data. Example: 70 for 70 percent. Default: 70.0
-- `--mlPartitionTestWeight`: Weight to apply to random partitioning of testing data. Example: 15 for 15 percent. Default: 15.0
-- `--mlPartitionValidationWeight`: Weight to apply to random partitioning of validation data. Example: 15 for 15 percent. Default: 15.0
-- `--mapCenterLat` Latitude in radians to center row latitude values on. Example: 41.8839. Default: 41.8839 (Chicago City Hall)
-- `--mapCenterLong`: Longitude in radians to center row latitude values on. Example: -87.6319. Default: -87.6319 (Chicago City Hall)
-- `--sampleSize`: Percent of data to sample. Example: 0-100. Default: 100
+```
+  --avroOutputPath=<ValueProvider>
+    Default: 
+    GCS output path for Avro. Example: gs://bucket/path/to/avro/
+  --csvHeaderOutputPath=<ValueProvider>
+    GCS output path for CSV header. Example: gs://bucket/path/to/csv/header
+  --csvOutputPath=<ValueProvider>
+    GCS output path for CSV. Example: gs://bucket/path/to/csv/
+  --csvShards=<ValueProvider>
+    Default: 30
+    Number of CSV shards to create. Example: 30 for 30 files. Default: 30
+  --dropTable=<ValueProvider>
+    Default: true
+    Drop output table when job starts
+  --hotEncodeCompany=<ValueProvider>
+    Default: false
+    One-hot-encode company field
+  --inputTableSpec=<ValueProvider>
+    Default: bigquery-public-data:chicago_taxi_trips.taxi_trips
+    Bigquery input tablespec. Example:
+    bigquery-public-data:chicago_taxi_trips.taxi_trips
+  --mapCenterLat=<ValueProvider>
+    Default: 41.8839
+    Latitude in radians to center row latitude values on. Example: 41.8839.
+    Default: 41.8839 (Chicago City Hall)
+  --mapCenterLong=<ValueProvider>
+    Default: -87.6319
+    Longitude in radians to center row latitude values on. Example: -87.6319.
+    Default: -87.6319 (Chicago City Hall)
+  --mlPartitionTestWeight=<ValueProvider>
+    Default: 15.0
+    Weight to apply to random partitioning of testing data. Example: 15 for 15
+    percent. Default: 15.0
+  --mlPartitionTrainWeight=<ValueProvider>
+    Default: 70.0
+    Weight to apply to random partitioning of training data. Example: 70 for 70
+    percent. Default: 70.0
+  --mlPartitionValidationWeight=<ValueProvider>
+    Default: 15.0
+    Weight to apply to random partitioning of validation data. Example: 15 for
+    15 percent. Default: 15.0
+  --outputDataset=<ValueProvider>
+    Default: chicagotaxi
+    Bigquery output dataset
+  --outputTable=<ValueProvider>
+    Default: finaltaxi_encoded
+    Bigquery output table
+  --outputTableSpec=<ValueProvider>
+    Default: chicagotaxi.finaltaxi_encoded
+    Bigquery output tablespec. Example: project_id:dataset.table
+  --sampleSize=<ValueProvider>
+    Default: 100
+    Percent of data to sample. Example: 0-100. Default: 100
+```
 
 ## Start a job in an existing JDK 8 environment
 

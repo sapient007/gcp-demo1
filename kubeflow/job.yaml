@@ -1,88 +1,16 @@
 apiVersion: "kubeflow.org/v1"
 kind: "TFJob"
 metadata:
-  name: "gcp-demo1-export-test"
+  name: "gcp-demo1-all-data-tuned"
   namespace: kubeflow
 spec:
   cleanPodPolicy: None 
   tfReplicaSpecs:
-    # PS:
-    #   replicas: 1
-    #   restartPolicy: ExitCode
-    #   template:
-    #     spec:
-    #       containers:
-    #         - name: tensorflow
-    #           image: gcr.io/ml-sandbox-1-191918/gcp-demo1:training
-    #           imagePullPolicy: Always
-    #           command:
-    #             - "python"
-    #             - "-m"
-    #             - "trainer.task"
-    #             - "--distribute=True"
-    #           resources:
-    #             limits:
-    #               cpu: '1'
-    #               memory: 2G
-    #           env:
-    #           - name: GOOGLE_APPLICATION_CREDENTIALS
-    #             value: "/etc/secrets/user-gcp-sa.json"
-    #           volumeMounts:
-    #           - name: sa
-    #             mountPath: "/etc/secrets"
-    #             readOnly: true
-    #       volumes:
-    #       - name: sa
-    #         secret:
-    #           secretName: user-gcp-sa
-    # Evaluator:
-    #   replicas: 1
-    #   restartPolicy: ExitCode
-    #   template:
-    #     spec:
-    #       containers:
-    #         - name: tensorflow
-    #           image: gcr.io/ml-sandbox-1-191918/gcp-demo1:training
-    #           imagePullPolicy: Always
-    #           command:
-    #             - "python"
-    #             - "-m"
-    #             - "trainer.task"
-    #             - "--distribute=True"
-    #             - "--learning-rate=0.01"
-    #             - "--batch-size=128"
-    #             - "--epochs=1"
-    #             - "--chunk-size=5000000"
-    #             - "--cycle-length=8"
-    #             - "--job-dir=gs://gcp-cert-demo-1/model/output/20191204_174100"
-    #             - "--table-id=finaltaxi_encoded_sampled_small"
-    #           resources:
-    #             limits:
-    #               cpu: '1'
-    #               memory: 2G
-    #           env:
-    #           - name: GOOGLE_APPLICATION_CREDENTIALS
-    #             value: "/etc/secrets/user-gcp-sa.json"
-    #           volumeMounts:
-    #           - name: sa
-    #             mountPath: "/etc/secrets"
-    #             readOnly: true
-    #       volumes:
-    #       - name: sa
-    #         secret:
-    #           secretName: user-gcp-sa
     Worker:
       replicas: 1
       restartPolicy: ExitCode
       template:
         spec:
-          # nodeSelector:
-          #   cloud.google.com/gke-accelerator: nvidia-tesla-t4
-          # tolerations:
-          #   - key: 'nvidia.com/gpu'
-          #     operator: 'Equal'
-          #     value: 'present'
-          #     effect: 'NoSchedule' 
           containers:
             - name: tensorflow
               image: gcr.io/ml-sandbox-1-191918/gcp-demo1:training
@@ -91,22 +19,18 @@ spec:
                 - "python"
                 - "-m"
                 - "trainer.task"
-                - "--num-workers=1"
                 - "--batch-size=102400"
-                - "--epochs=3"
-                # - "--chunk-size=5000000"
+                - "--epochs=12"
                 - "--cycle-length=14"
                 - "--job-dir=gs://gcp-cert-demo-1/model/output"
-                - "--table-id=final_taxi_encoded_mini"
+                - "--table-id=finaltaxi_encoded"
                 - "--summary-write-steps=10"
                 - "--log-step-count-steps=5"
-                # - "--distribute=True"
-                # - "--learning-rate=0.01"
-                # - "--dropout-rate=0.0"
-                # - "--optimizer=rmsprop"
+                - "--learning-rate=0.01"
+                - "--dropout-rate=0.0"
+                - "--optimizer=rmsprop"
               resources:
                 limits:
-                  # nvidia.com/gpu: 1
                   cpu: '14'
                   memory: '100G'
               env:
