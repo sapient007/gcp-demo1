@@ -6,47 +6,6 @@ metadata:
 spec:
   cleanPodPolicy: None 
   tfReplicaSpecs:
-    # Chief:
-    #   replicas: 1
-    #   restartPolicy: ExitCode
-    #   template:
-    #     spec:
-    #       containers:
-    #         - name: tensorflow
-    #           image: gcr.io/ml-sandbox-1-191918/gcp-demo1:training
-    #           imagePullPolicy: Always
-    #           command:
-    #             - "python"
-    #             - "-m"
-    #             - "trainer.task"
-    #             - "task"
-    #             - "--num-workers=2"
-    #             - "--learning-rate=0.01"
-    #             - "--batch-size=102400"
-    #             - "--epochs=3"
-    #             - "--chunk-size=5000000"
-    #             - "--cycle-length=8"
-    #             - "--job-dir=gs://gcp-cert-demo-1/model/output"
-    #             - "--table-id=finaltaxi_encoded_sampled_small"
-    #             - "--summary-write-steps=5"
-    #             - "--log-step-count-steps=5"
-    #             - "--distribute=True"
-    #             - "--distribute-strategy=parameter-server"
-    #           resources:
-    #             limits:
-    #               cpu: '2'
-    #               memory: '4G'
-    #           env:
-    #           - name: GOOGLE_APPLICATION_CREDENTIALS
-    #             value: "/etc/secrets/user-gcp-sa.json"
-    #           volumeMounts:
-    #           - name: sa
-    #             mountPath: "/etc/secrets"
-    #             readOnly: true
-    #       volumes:
-    #       - name: sa
-    #         secret:
-    #           secretName: user-gcp-sa
     # PS:
     #   replicas: 1
     #   restartPolicy: ExitCode
@@ -60,7 +19,6 @@ spec:
     #             - "python"
     #             - "-m"
     #             - "trainer.task"
-    #             - "task"
     #             - "--distribute=True"
     #           resources:
     #             limits:
@@ -90,7 +48,7 @@ spec:
     #             - "python"
     #             - "-m"
     #             - "trainer.task"
-    #             - "task"
+    #             - "--distribute=True"
     #             - "--learning-rate=0.01"
     #             - "--batch-size=128"
     #             - "--epochs=1"
@@ -133,7 +91,6 @@ spec:
                 - "python"
                 - "-m"
                 - "trainer.task"
-                - "task"
                 - "--num-workers=1"
                 - "--batch-size=102400"
                 - "--epochs=3"
