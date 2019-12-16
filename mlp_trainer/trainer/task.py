@@ -2,29 +2,22 @@ import argparse
 import logging
 import os
 import json
+from typing import Any, Dict, Tuple
 
 import trainer.model as model
 
-# import trainer.model_tf as model_tf
-# import trainer.save_model as save_model
 
-def train_and_evaluate(args):
-    """
-    TODO: description
-    :param args:
-    :return:
-    """
-
-
+def get_params(args) -> Dict[str, Any]:
     # format parameters from input arguments
     params = {
         'hypertune': args.hypertune,
+        'no_generated_job_path': args.no_generated_job_path,
         'distribute': args.distribute,
         'data_source': args.data_source,
         'distribute_strategy': args.distribute_strategy,
         'cycle_length': args.cycle_length,
         'summary_write_steps': args.summary_write_steps,
-        'checkpoint_write_steps': args.checkpoint_write_steps,
+        # 'checkpoint_write_steps': args.checkpoint_write_steps,
         'log_step_count_steps': args.log_step_count_steps,
         'dense_neurons_1': args.dense_neurons_1,
         'dense_neurons_2': args.dense_neurons_2,
@@ -44,22 +37,17 @@ def train_and_evaluate(args):
 
     if args.batch_size_float:
         params['batch_size'] = int(args.batch_size_float)
+    
+    return params
 
-    """Parse TF_CONFIG to cluster_spec and call run() method.
 
-    TF_CONFIG environment variable is available when running using
-    gcloud either locally or on cloud. It has all the information required
-    to create a ClusterSpec which is important for running distributed code.
-
-    Args:
-        args (args): Input arguments.
-    """
-
+def get_tf_config() -> Tuple[Dict[str, Any], str, int]:
     # for ML ENGINE:
     tf_config = os.environ.get('TF_CONFIG')
-    job_name = None
+    cluster = {}
+    job_name = ''
     task_index = 0
-    # tf.get_logger().info("NTC_DEBUG: Old TF_CONFIG: {}".format(tf_config))
+
     # If TF_CONFIG is not available run local.
     if tf_config:
         tf_config_json = json.loads(tf_config)
@@ -67,50 +55,31 @@ def train_and_evaluate(args):
         job_name = tf_config_json.get('task', {}).get('type')
         task_index = tf_config_json.get('task', {}).get('index')
 
-        # tf_config_json["cluster"]["chief"] = cluster.get("master")
-        # if cluster.get("master"):
-        #     del tf_config_json["cluster"]["master"]
-        #     cluster = tf_config_json.get('cluster')
+        tf_config_json["cluster"]["chief"] = cluster.get("master")
+        if cluster.get("master"):
+            del tf_config_json["cluster"]["master"]
+            cluster = tf_config_json.get('cluster')
 
-        # # Map ML Engine master to chief for TF
-        # if job_name == "master":
-        #     tf_config_json["task"]["type"] = 'chief'
-        #     job_name = 'chief'
-        #     os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
-        # tf.get_logger().info("NTC_DEBUG: New TF_CONFIG: {}".format(tf_config_json))
+        # Map ML Engine master to chief for TF
+        if job_name == "master":
+            tf_config_json["task"]["type"] = 'chief'
+            job_name = 'chief'
+            os.environ['TF_CONFIG'] = json.dumps(tf_config_json)
+    
+    return cluster, job_name, task_index
 
 
-        # if job_name is not None or task_index is not None:
-        #     cluster_spec = tf.train.ClusterSpec(cluster)
 
-        #     tf.get_logger().info("NTC_DEBUG: {}".format(cluster_spec))
-        #     server = tf.distribute.Server(
-        #         cluster_spec,
-        #         job_name=job_name,
-        #         task_index=task_index
-        #     )
-        #     if job_name == 'ps':
-        #         server.join()
-        #         return
-        #     elif job_name in ['chief', 'worker']:
-        #         tf.get_logger().info("NTC_DEBUG: job_name: {}; task_index: {}; server.target: {}".format(job_name, task_index, server.target))
-        #         with tf.compat.v1.Session(server.target):
-        #             return model.train_and_evaluate(
-        #                 args.table_id, 
-        #                 args.job_dir, 
-        #                 params=params,
-        #                 job_name=job_name,
-        #                 task_index=task_index,
-        #             )
+def train_and_evaluate(args):
+    """
+    TODO: description
+    :param args:
+    :return:
+    """
 
-    # os.environ["TF_CONFIG"] = json.dumps({
-    #     "cluster": {
-    #         "chief": ["localhost:2222"]
-    #         # "worker": ["host1:port", "host2:port", "host3:port"],
-    #         # "ps": ["host4:port", "host5:port"]
-    #     },
-    #     "task": {"type": args.tf_task, "index": 0}
-    # })
+    params = get_params(args)
+
+    _, job_name, task_index = get_tf_config()
 
     if args.distribute is True:
         return model.train_and_evaluate_dist(
@@ -137,15 +106,16 @@ def train_and_evaluate(args):
             # hypertune=args.hypertune
         )
 
-    # model_tf.train_and_evaluate(args.table_id, params)
-    # save_model.save_estimator_model(bucket_name=args.bucket, path=args.job_dir)
 
-    # save model and history to job directory
-    # save_model.save_model(
-    #     mlp_model,
-    #     bucket_name=args.bucket,
-    #     path=args.job_dir
-    # )
+def save_model(args):
+    params = get_params(args)
+    params['no_generated_job_path'] = True
+
+    model.save_model_local(
+        args.table_id, 
+        args.job_dir, 
+        params=params,
+    )
 
 
 if __name__ == '__main__':
@@ -188,11 +158,11 @@ if __name__ == '__main__':
         type=int,
         help='Steps (batches) to run before writing Tensorflow scalar summaries',
         default=100)
-    parser.add_argument(
-        '--checkpoint-write-steps',
-        type=int,
-        help='Steps (batches) to run before writing Tensorflow training checkpoints',
-        default=500)
+    # parser.add_argument(
+    #     '--checkpoint-write-steps',
+    #     type=int,
+    #     help='Steps (batches) to run before writing Tensorflow training checkpoints',
+    #     default=500)
     parser.add_argument(
         '--table-id',
         type=str,
@@ -213,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--task',
         type=str,
-        help='train or tune',
+        help='train, tune, or save',
         default='train')
     parser.add_argument(
         '--bucket',
@@ -225,6 +195,11 @@ if __name__ == '__main__':
         type=str,
         help='Directory to create in bucket to write history, logs, and export model',
         default='model')
+    parser.add_argument(
+        '--no-generated-job-path',
+        action='store_false',
+        help='Do not add a path suffix on --job-dir with the date and time',
+    )
     parser.add_argument(
         '--cycle-length',
         type=int,
@@ -255,21 +230,6 @@ if __name__ == '__main__':
         type=float,
         help='Dropout rate for all model layers, default=0.1',
         default=0.1)
-    # parser.add_argument(
-    #     '--dropout-rate-1',
-    #     type=float,
-    #     help='Dropout rate for first model layer, default=0.1',
-    #     default=0.1)
-    # parser.add_argument(
-    #     '--dropout-rate-2',
-    #     type=float,
-    #     help='Dropout rate for second model layer, default=0.1',
-    #     default=0.1)
-    # parser.add_argument(
-    #     '--dropout-rate-3',
-    #     type=float,
-    #     help='Dropout rate for third model layer, default=0.1',
-    #     default=0.1)
     parser.add_argument(
         '--optimizer',
         type=str,
@@ -279,12 +239,12 @@ if __name__ == '__main__':
         '--learning-rate',
         type=float,
         help='Learning rate, default=0.01',
-        default=0.1)
+        default=0.01)
     parser.add_argument(
         '--batch-size',
         type=int,
         help='Batch size, default=64',
-        default=64)
+        default=1024)
     parser.add_argument(
         '--batch-size-float',
         type=float,
@@ -321,9 +281,9 @@ if __name__ == '__main__':
         default='normal')
     args, _ = parser.parse_known_args()
 
-    if args.task in 'train':
+    if args.task in ['train', 'tune']:
         train_and_evaluate(args)
-    elif args.task in 'tune':
-        tune(args)
+    elif args.task in 'save':
+        save_model(args)
     else:
-        logging.error('--task must be \'train\' or \'tune\'')
+        logging.error('--task must be \'train\', \'tune\', or \'save\'')

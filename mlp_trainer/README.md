@@ -21,6 +21,7 @@ rm -r mlp_trainer/model && gcloud ai-platform local train --module-name=trainer.
 
 
 ```powershell
-(docker build --pull -f .\Dockerfile -t gcr.io/$env:PROJECT_ID/gcp-demo1:training .\) -and (doc
-ker push gcr.io/$env:PROJECT_ID/gcp-demo1:training)
+docker build --pull -f .\Dockerfile -t gcr.io/$env:PROJECT_ID/gcp-demo1:training .\; docker push gcr.io/$env:PROJECT_ID/gcp-demo1:training
 ```
+
+docker build --pull -f .\Dockerfile -t gcr.io/ml-sandbox-1-191918/gcp-demo1:training .\; docker push gcr.io/ml-sandbox-1-191918/gcp-demo1:training

@@ -1,7 +1,7 @@
 apiVersion: "kubeflow.org/v1"
 kind: "TFJob"
 metadata:
-  name: "gcp-demo1-sampled-small"
+  name: "gcp-demo1-export-test"
   namespace: kubeflow
 spec:
   cleanPodPolicy: None 
@@ -135,21 +135,23 @@ spec:
                 - "trainer.task"
                 - "task"
                 - "--num-workers=1"
-                - "--learning-rate=0.05"
-                - "--batch-size=10240"
-                - "--epochs=2"
+                - "--batch-size=102400"
+                - "--epochs=3"
                 # - "--chunk-size=5000000"
-                - "--cycle-length=6"
+                - "--cycle-length=14"
                 - "--job-dir=gs://gcp-cert-demo-1/model/output"
-                # - "--table-id=final_taxi_encoded_mini"
-                - "--summary-write-steps=5"
+                - "--table-id=final_taxi_encoded_mini"
+                - "--summary-write-steps=10"
                 - "--log-step-count-steps=5"
                 # - "--distribute=True"
+                # - "--learning-rate=0.01"
+                # - "--dropout-rate=0.0"
+                # - "--optimizer=rmsprop"
               resources:
                 limits:
                   # nvidia.com/gpu: 1
-                  cpu: '6'
-                  memory: '25G'
+                  cpu: '14'
+                  memory: '100G'
               env:
               - name: GOOGLE_APPLICATION_CREDENTIALS
                 value: "/etc/secrets/user-gcp-sa.json"

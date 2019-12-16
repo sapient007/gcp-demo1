@@ -12,3 +12,4 @@ python-snappy==0.5.4
 # fastavro==0.22.7
 kfp==0.1.35
 pytz>=2019.0,<2020
+tfa-nightly

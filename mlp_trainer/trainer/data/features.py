@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Dict
 
 import tensorflow as tf
 
@@ -31,6 +31,40 @@ def defs():
     { "name": "month_NOVEMBER", "dtype": tf.dtypes.float32},
     { "name": "month_DECEMBER", "dtype": tf.dtypes.float32},
 ]
+
+
+def serving_input_receiver_fn():
+    # inputs = tf.ones(
+    #     shape=[26],
+    #     dtype=tf.dtypes.float32,
+    #     name='features'
+    # )
+    # receiver_tensors = {
+    #     "features": inputs,
+    # }
+
+    inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, 26])  # this is raw input
+    features = inputs  # we simply feed the raw input to estimator
+    
+
+    return tf.estimator.export.TensorServingInputReceiver(features, inputs)
+
+
+
+# def input_serving_feature_spec() -> Dict[str, tf.io.FixedLenFeature]:
+#     inputs = {
+#         'features': tf.io.FixedLenFeature(
+#             shape=[None, 26],
+#             dtype=tf.dtypes.float32
+#         )
+#     }
+#     # for feat in defs():
+#     #     inputs[feat.get('name')] = tf.io.FixedLenFeature(
+#     #         shape=(1,),
+#     #         dtype=feat.get('dtype')
+#     #     )
+#     return inputs
+
 
 def get_generator_output(label_output=tf.dtypes.float32) -> List[tf.DType]:
     outputs = []

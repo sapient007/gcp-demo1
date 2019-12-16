@@ -4,7 +4,7 @@ metadata:
   namespace: kubeflow
   name: gcp-demo1-tune-sampled-small
 spec:
-  parallelTrialCount: 11
+  parallelTrialCount: 10
   maxTrialCount: 410
   maxFailedTrialCount: 100
   objective:

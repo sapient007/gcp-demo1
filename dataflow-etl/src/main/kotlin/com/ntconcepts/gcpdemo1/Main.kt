@@ -12,6 +12,7 @@ import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.coders.*
 import org.apache.beam.sdk.io.AvroIO
 import org.apache.beam.sdk.io.FileIO
+import org.apache.beam.sdk.io.TFRecordIO
 import org.apache.beam.sdk.io.TextIO
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord
@@ -430,3 +431,29 @@ fun writeAvro(options: Demo1Options, p: PCollection<KV<TaxiRideL1, TaxiTripOutpu
         )
 
 }
+
+//fun writeTFRecord(options: Demo1Options, p: PCollection<KV<TaxiRideL1, TaxiTripOutput>>) {
+//    p.apply(
+//        "Map to TaxiTripOutput",
+//        MapElements.into(TypeDescriptor.of(TaxiTripOutput::class.java))
+//            .via(SerializableFunction<KV<TaxiRideL1, TaxiTripOutput>, TaxiTripOutput> {
+//                it.value
+//            })
+//    ).apply(
+//            "Write Avro",
+//            FileIO.writeDynamic<String, TaxiTripOutput>()
+//                .by {
+//                    it.ml_partition
+//                }
+//                .via(TFRecordIO.sink())
+//                .to(options.avroOutputPath)
+//                .withDestinationCoder(StringUtf8Coder.of())
+//                .withNaming(
+//                    Contextful.fn(
+//                        SerializableFunction {
+//                            AvroNamingFn(it)
+//                        })
+//                )
+//        )
+//
+//}

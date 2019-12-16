@@ -3,8 +3,10 @@ import datetime
 from typing import Tuple
 
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 import trainer.base_model as base_model
+import trainer.data.features as features
 import trainer.data.bigquery as data
 import trainer.data.bigquery_generator as bq_generator
 import trainer.data.avro as avro_generator
@@ -12,19 +14,26 @@ import trainer.data.avro as avro_generator
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.DEBUG)
 
 
-def model_fn(features, labels, mode):
-    model = base_model.get(global_params)
+def model_fn(features, labels, mode, params={}):
+    model = base_model.get(params)
     # if mode == tf.estimator.ModeKeys.PREDICT:
     #     # predictions = {'logits': logits}
     #     return tf.estimator.EstimatorSpec(labels=labels, predictions=preds)
 
     training = (mode == tf.estimator.ModeKeys.TRAIN)
     preds = model(features, training=training)
+
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            predictions=preds,
+        )
+
     loss = tf.keras.losses.BinaryCrossentropy(
         reduction=tf.keras.losses.Reduction.NONE
     )(labels, preds)
     # print(loss)
-    loss = tf.reduce_sum(loss) * (1. / global_params['batch_size'])
+    loss = tf.reduce_sum(loss) * (1. / params['batch_size'])
 
     # print(labels)
     # print(tf.reshape(labels, tf.TensorShape([None,1])))
@@ -34,6 +43,16 @@ def model_fn(features, labels, mode):
         acc = tf.keras.metrics.BinaryAccuracy()
         acc.update_state(labels, preds)
         eval_ops['test_accuracy'] = acc
+        f1 = tfa.metrics.FBetaScore(
+            num_classes=1,
+            average='micro',
+            beta=1.0,
+        )
+        f1.update_state(labels, preds)
+        eval_ops['test_f1'] = f1
+        auc = tf.keras.metrics.AUC()
+        auc.update_state(labels, preds)
+        eval_ops['test_auc'] = auc
         precision = tf.keras.metrics.Precision()
         precision.update_state(labels, preds)
         eval_ops['test_precision'] = precision
@@ -60,17 +79,17 @@ def model_fn(features, labels, mode):
 
     train_op = None
     if training:
-        if global_params['optimizer'] == 'adam':
+        if params['optimizer'] == 'adam':
             optimizer = tf.optimizers.Adam(
-                learning_rate=global_params['learning_rate']
+                learning_rate=params['learning_rate']
             )
-        elif global_params['optimizer'] == 'rmsprop':
+        elif params['optimizer'] == 'rmsprop':
             optimizer = tf.optimizers.RMSprop(
-                learning_rate=global_params['learning_rate']
+                learning_rate=params['learning_rate']
             )
-        elif global_params['optimizer'] == 'sgd':
+        elif params['optimizer'] == 'sgd':
             optimizer = tf.optimizers.SGD(
-                learning_rate=global_params['learning_rate']
+                learning_rate=params['learning_rate']
             )
         # optimizer = tf.train.experimental.enable_mixed_precision_graph_rewrite(
         #     optimizer
@@ -116,7 +135,7 @@ def input_fn_eval_avro():
     dataset = avro_generator.get_data(
         BUCKET_NAME,
         PREFIX,
-        'test',
+        'validation',
         global_params['batch_size'],
         global_params['epochs'],
         global_params['chunk_size'],
@@ -146,7 +165,7 @@ def input_fn_train_bq():
 def input_fn_eval_bq():
     dataset = bq_generator.get_data(
         global_table_id,
-        'test',
+        'validation',
         global_params['batch_size'],
         global_params['epochs'],
         global_params['chunk_size'],
@@ -168,11 +187,14 @@ def get_session_config(job_name: str, task_index: int):
     return None
 
 
-def make_job_output(job_dir):
-    return "{}/{}".format(
-        job_dir,
-        datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    )
+def make_job_output(job_dir: str, add_suffix: bool):
+    if add_suffix is True:
+        return "{}/{}".format(
+            job_dir,
+            datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        )
+    else:
+        return job_dir
 
 
 global_table_id = ""
@@ -248,7 +270,10 @@ def train_and_evaluate_dist(
     )
 
     classifier = tf.estimator.Estimator(
-        model_fn=model_fn, model_dir=make_job_output(job_dir), config=config)
+        model_fn=model_fn, 
+        model_dir=make_job_output(job_dir, global_params['no_generated_job_path']), 
+        config=config
+    )
 
     if global_params['data_source'] == 'bigquery':
         input_fn_train = input_fn_train_bq
@@ -275,6 +300,45 @@ def train_and_evaluate_dist(
         )
     )
 
+
+def get_train_steps(table_id: str, params: dict) -> Tuple[int, int]:
+    train_steps_per_epoch = math.ceil(
+            data.get_sample_count(
+                table_id,
+                partition='train'
+            ) / params['batch_size']
+        )
+
+    checkpoint_steps = math.floor(
+            train_steps_per_epoch*.5
+    )
+
+    if checkpoint_steps < 1:
+        checkpoint_steps = train_steps_per_epoch
+
+    if params['hypertune'] is True:
+        checkpoint_steps = train_steps_per_epoch
+    
+    return train_steps_per_epoch, checkpoint_steps
+
+
+def create_mlp(job_dir: str, checkpoint_steps: int, params: dict):
+
+    config = tf.estimator.RunConfig(
+        log_step_count_steps=params['log_step_count_steps'],
+        save_summary_steps=params['summary_write_steps'],
+        # Evaluate halfway through the epoch
+        save_checkpoints_steps=checkpoint_steps,
+    )
+
+    mlp = tf.estimator.Estimator(
+        model_fn=model_fn, 
+        model_dir=job_dir, 
+        config=config,
+        params=params,
+    )
+
+    return mlp
 
 def train_and_evaluate_local(
     table_id: str,
@@ -314,32 +378,12 @@ def train_and_evaluate_local(
         profiler=False
     )
 
-    train_steps_per_epoch = math.ceil(
-                data.get_sample_count(
-                    table_id,
-                    partition='train'
-                ) / params['batch_size']
-            )
-
-    checkpoint_steps = math.floor(
-            train_steps_per_epoch*.5
+    train_steps_per_epoch, checkpoint_steps = get_train_steps(table_id, params)
+    classifier = create_mlp(
+        make_job_output(job_dir, global_params['no_generated_job_path']), 
+        checkpoint_steps,
+        params
     )
-
-    if checkpoint_steps < 1:
-        checkpoint_steps = train_steps_per_epoch
-    
-    if global_params['hypertune'] is True:
-        checkpoint_steps = train_steps_per_epoch
-
-    config = tf.estimator.RunConfig(
-        log_step_count_steps=global_params['log_step_count_steps'],
-        save_summary_steps=global_params['summary_write_steps'],
-        # Evaluate halfway through the epoch
-        save_checkpoints_steps=checkpoint_steps,
-    )
-
-    classifier = tf.estimator.Estimator(
-        model_fn=model_fn, model_dir=make_job_output(job_dir), config=config)
 
     if global_params['data_source'] == 'bigquery':
         input_fn_train = input_fn_train_bq
@@ -347,6 +391,16 @@ def train_and_evaluate_local(
     elif global_params['data_source'] == 'avro':
         input_fn_train = input_fn_train_avro
         input_fn_eval = input_fn_eval_avro
+
+    # serving_input_receiver_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(
+    #         features.input_serving_feature_spec()
+    # )
+
+    # exporters = [
+    #     tf.estimator.BestExporter(
+    #         serving_input_receiver_fn=serving_input_receiver_fn
+    #     )
+    # ]
 
     tf.estimator.train_and_evaluate(
         classifier,
@@ -363,5 +417,22 @@ def train_and_evaluate_local(
                 ) / params['batch_size']
             ),
             # throttle_secs=60,
-        )
+            # exporters=exporters,
+        ),
+    )
+
+
+def save_model_local(
+    table_id: str,
+    job_dir: str,
+    params: dict,
+):
+    tf.compat.v1.disable_eager_execution()
+
+    _, checkpoint_steps = get_train_steps(table_id, params)
+    mlp = create_mlp(job_dir, checkpoint_steps, params)
+
+    mlp.export_saved_model(
+        "{}/saved_model".format(job_dir),
+        features.serving_input_receiver_fn
     )
