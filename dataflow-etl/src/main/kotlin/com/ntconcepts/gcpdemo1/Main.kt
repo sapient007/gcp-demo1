@@ -12,7 +12,6 @@ import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.coders.*
 import org.apache.beam.sdk.io.AvroIO
 import org.apache.beam.sdk.io.FileIO
-import org.apache.beam.sdk.io.TFRecordIO
 import org.apache.beam.sdk.io.TextIO
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord
@@ -287,8 +286,8 @@ fun getPipeline(options: Demo1Options): Pipeline {
             "Sample data",
             ParDo.of(SampleDataFn(options.sampleSize))
         )
-//    writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
-    writeAvro(options, tripOutputs)
+    writeBQ(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
+//    writeAvro(options, tripOutputs)
 //    writeCSV(options, p, tripOutputs, dayOfWeekView, monthView, companiesView)
 
     return p
