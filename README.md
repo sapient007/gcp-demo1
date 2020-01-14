@@ -4,6 +4,9 @@ This code package leverages Google Cloud Platform tools to create a model capabl
 
 ## Project components
 
+### Authenticating your Google Cloud project
+<to do insert GCP authentication information link here>
+
 ### Data preprocessing pipeline
 
 All data preprocessing occurs in a [Google Cloud Dataflow](https://cloud.google.com/dataflow/docs/) job using an [Apache Beam](https://beam.apache.org/) pipeline in the [`dataflow-etl/`](dataflow-etl/) directory. Instructions for running preprocessing are in that [directory](dataflow-etl/README.md).
@@ -15,3 +18,4 @@ The project's model is trained in a Tensorflow 2.0 application in [`mlp_trainer/
 ### Kubeflow training and hypertuning
 
 Training and hypertuning can be run in Kubeflow. A [Kubeflow TFJob](https://www.kubeflow.org/docs/components/training/tftraining/) configuration for training and an [Experiment](https://www.kubeflow.org/docs/components/hyperparameter-tuning/hyperparameter/) configuration for hypertuning are provided in [`kubeflow/`](kubeflow/).
+Instructions for training and hybertuning are in the [Kubeflow's directory](kubeflow/README.md).
