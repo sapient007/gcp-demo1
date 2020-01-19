@@ -2,13 +2,15 @@
 
 This package creates a pipeline for training a multilayer perceptron model with this project's data in TensorFlow 2.0. This documentation will walk you through packaging this application into a container for training in a Kubeflow cluster.
 
-## Requirements
+## Setup
 
-You will need [Docker](https://www.docker.com/get-started) to build the container. It is also suggested to use [Google Cloud's Container Registry](https://cloud.google.com/container-registry/) within the same GCP project where Kubeflow has been deployed.
+### Environment Variables
 
-## Building and pushing the container
+Following are a list of environment variables necessary to run this portion of the demo
 
-From this directory run the command (where you set PROJECT_ID as your GCP project):
+```
+PROJECT_ID: <GCP Project ID associated with service key>
+```
 
 ### Linux/macOS
 
@@ -119,15 +121,3 @@ or in some shells
 conda deactivate
 ```
 
-### Python Package Installation
-```
-pip install -r mlp_trainer/requirements.txt
-```
-
-### Installing Google SDK
-Please use this link to install the [GCloud SDK](https://cloud.google.com/sdk/docs/quickstarts).  
-Authentication will be made with the provided service account. 
-
-```
-gcloud auth application-default login
-```

@@ -4,10 +4,24 @@ This code package leverages Google Cloud Platform tools to create a model capabl
 
 ## Setup
 
-### Authenticating your Google Cloud project
+### Google Cloud Platform
 Google Cloud SDK needs to be enabled to control resources hosted on Google Cloud Platform (GCP). Please follow instructions on how to install [SDK client](https://cloud.google.com/sdk/docs/)
 
 Container Registry is a private container image registry that runs on Google Cloud. This service is used in the ETL process of the demo and needs to be enabled. Please follow instuctions on how to use the [Container Registry](https://cloud.google.com/container-registry/docs/quickstart). 
+
+Google Kubernetes Engine is used to deploy a cluster of VMs functions to orchestrate and run kubeflow. Instrctions are found [here](https://www.kubeflow.org/docs/gke/customizing-gke/).
+
+The Kubeflow is used for deployments of machine learning (ML) workflows on Kubernetes. Deplyment of Kubeflow is found [here](https://www.kubeflow.org/docs/gke/deploy/). 
+
+
+### Python Package Installation
+example 
+```
+pip install -r <folder name>/requirements.txt
+```
+
+### Docker
+Docker is used to run containers locally on your workstation. Install [Docker](https://www.docker.com/get-started) to build the containers. 
 
 
 ## Project components
