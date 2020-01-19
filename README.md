@@ -24,6 +24,7 @@ pip install -r <folder name>/requirements.txt
 Docker is used to run containers locally on your workstation. Install [Docker](https://www.docker.com/get-started) to build the containers. 
 
 
+
 ## Project components
 
 ### Data preprocessing pipeline
