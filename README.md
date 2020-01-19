@@ -7,7 +7,7 @@ This code package leverages Google Cloud Platform tools to create a model capabl
 ### Authenticating your Google Cloud project
 Google Cloud SDK needs to be enabled to control resources hosted on Google Cloud Platform (GCP). Please follow instructions on how to install [SDK client](https://cloud.google.com/sdk/docs/)
 
-Container Registry is a private container image registry that runs on Google Cloud. This function is used in the ETL process of the demo and needs to be enabled. Please follow instuctions on how to use the [Container Registry](https://cloud.google.com/container-registry/docs/quickstart). 
+Container Registry is a private container image registry that runs on Google Cloud. This service is used in the ETL process of the demo and needs to be enabled. Please follow instuctions on how to use the [Container Registry](https://cloud.google.com/container-registry/docs/quickstart). 
 
 
 ## Project components
