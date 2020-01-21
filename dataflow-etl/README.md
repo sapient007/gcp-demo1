@@ -1,6 +1,6 @@
 # Demo 1 data pipeline
 
-ETL is done by a Google Cloud Dataflow job in `./dataflow-etl`. The job will read data from the `bigquery-public-data:chicago_taxi_trips.taxi_trips` public dataset and prepare data for both training and predictions. The job will output data to Bigquery. 
+ETL is done by a Google Cloud Dataflow job in `./dataflow-etl`. The job will read data from the `bigquery-public-data:chicago_taxi_trips.taxi_trips` public dataset and prepare data for both training and predictions. The job will output data to Bigquery (BQ). 
 
 ## Setup
 
@@ -11,7 +11,7 @@ Following are a list of environment variables necessary to run this portion of t
 ```
 PROJECT_ID: <GCP Project ID associated with service key>
 GCP_REGION: <GCP Region which where processing is run>
-INSTANCE_TYPE: <Machine instance types>
+INSTANCE_TYPE: <Machine instance types i.e n1-highmem-4>
 MAX_WORKERS: < # of works to do ETL job >
 LOCATION_OF_SA_JSON: < location of service account json key >
 JOB_NAME: < name of the ETL job >
@@ -19,7 +19,7 @@ JOB_NAME: < name of the ETL job >
 
 ## ETL prerequisites
 
-You will need to create a Bigquery dataset in your project. If you use the default job options, create a datased named `chicagotaxi`. It can be named anything and customized in job options. If you do not specifiy a service account for the Dataflow job to use (`--serviceAccount`), it will use the project's default Compute Engine service account. Either the default GCE or the provided service account for the workers must be have read and write access to the dataset.
+You will need to create a BQ dataset in your project. If you use the default job options, create a dataset named `chicagotaxi`. It can be named anything and customized in job options. If you do not specify a service account for the Dataflow job to use (`--serviceAccount`), it will use the project's default Compute Engine service account. Either the default GCE or the provided service account for the workers must be have read and write access to the dataset.
 
 ### Using the shuffle service
 

@@ -6,7 +6,8 @@ Once data has been preprocessed and the training application container is create
 
 To start a training job on the full data, run:
 
-```bash
+```
+bash
 kubectl apply -f job.yaml
 ```
 
